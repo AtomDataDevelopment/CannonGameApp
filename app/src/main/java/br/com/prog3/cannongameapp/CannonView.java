@@ -70,6 +70,11 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     private Paint textPaint;
     private Paint backgroundPaint;
 
+    // Variáveis para controle de recarga
+    private long lastFireTime = 0;
+    private static final int RELOAD_DELAY = 500; // 500 milissegundos
+    private boolean canFire = true;
+
     public CannonView(Context context, AttributeSet attrs) {
         super(context, attrs);
         activity = (Activity) context;
@@ -137,11 +142,51 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
 
     @Override
     public boolean onTouchEvent(MotionEvent e) {
-        int action = e.getAction();
-        if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_MOVE) {
-            alignAndFireCannonball(e);
+        int pointerIndex = e.getActionIndex();
+        int pointerId = e.getPointerId(pointerIndex);
+        int maskedAction = e.getActionMasked();
+
+        switch (maskedAction) {
+            case MotionEvent.ACTION_DOWN:
+            case MotionEvent.ACTION_POINTER_DOWN:
+                // Um novo dedo tocou a tela
+                if (e.getX(pointerIndex) >= screenWidth / 2) { // Dedo na área direita (disparo)
+                    fireCannon();
+                } else { // Dedo na área esquerda (mira)
+                    alignCannon(e.getX(pointerIndex), e.getY(pointerIndex));
+                }
+                break;
+            case MotionEvent.ACTION_MOVE:
+                // Um ou mais dedos estão se movendo
+                for (int i = 0; i < e.getPointerCount(); i++) {
+                    if (e.getX(i) < screenWidth / 2) { // Dedo na área esquerda (mira)
+                        alignCannon(e.getX(i), e.getY(i));
+                    }
+                }
+                break;
+            // Outras ações como UP, POINTER_UP não precisam de tratamento específico para mira/disparo
         }
         return true;
+    }
+
+    private void alignCannon(float touchX, float touchY) {
+        Point touchPoint = new Point((int) touchX, (int) touchY);
+        double centerMinusY = (screenHeight / 2 - touchPoint.y);
+        double angle = 0;
+        if (centerMinusY != 0)
+            angle = Math.atan2(touchPoint.x, centerMinusY);
+
+        cannon.align(angle);
+    }
+
+    private void fireCannon() {
+        if (canFire && (cannon.getCannonball() == null || !cannon.getCannonball().isOnScreen())) {
+            cannon.fireCannonball();
+            playSound(CANNON_SOUND_ID);
+            ++shotsFired;
+            canFire = false;
+            lastFireTime = System.currentTimeMillis();
+        }
     }
 
     private class CannonThread extends Thread {
@@ -218,6 +263,8 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         timeLeft = 10;
         shotsFired = 0;
         totalElapsedTime = 0.0;
+        canFire = true; // Reinicia a flag de disparo
+        lastFireTime = 0; // Reinicia o tempo do último disparo
 
         if (gameOver) {
             gameOver = false;
@@ -249,20 +296,10 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
             showGameOverDialog(R.string.win);
             gameOver = true;
         }
-    }
 
-    public void alignAndFireCannonball(MotionEvent event) {
-        Point touchPoint = new Point((int) event.getX(), (int) event.getY());
-        double centerMinusY = (screenHeight / 2 - touchPoint.y);
-        double angle = 0;
-        if (centerMinusY != 0)
-            angle = Math.atan2(touchPoint.x, centerMinusY);
-
-        cannon.align(angle);
-
-        if (cannon.getCannonball() == null || !cannon.getCannonball().isOnScreen()) {
-            cannon.fireCannonball();
-            ++shotsFired;
+        // Verifica o tempo de recarga
+        if (!canFire && (System.currentTimeMillis() - lastFireTime) >= RELOAD_DELAY) {
+            canFire = true;
         }
     }
 
