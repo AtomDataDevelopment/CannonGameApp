@@ -233,8 +233,13 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         if (cannon.getCannonball() != null)
             cannon.getCannonball().update(interval);
         blocker.update(interval);
-        for (Target target : targets)
+        for (int i = targets.size() - 1; i >= 0; i--) {
+            Target target = targets.get(i);
             target.update(interval);
+            if (target.isAnimationFinished()) {
+                targets.remove(i);
+            }
+        }
 
         timeLeft -= interval;
         if (timeLeft <= 0) {
@@ -267,17 +272,14 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     private void showGameOverDialog(final int messageId) {
-        // Executa na UI Thread para poder mexer na tela
         activity.runOnUiThread(new Runnable() {
             public void run() {
-                showSystemBars(); // Mostra a barra para o usuário poder sair se quiser
+                showSystemBars();
 
-                // Cria o alerta direto, sem envolver Fragmentos complicados
                 AlertDialog.Builder builder = new AlertDialog.Builder(activity);
 
-                builder.setTitle(getResources().getString(messageId)); // Título (Venceu/Perdeu)
+                builder.setTitle(getResources().getString(messageId));
 
-                // Corpo da mensagem (Disparos e Tempo)
                 builder.setMessage(getResources().getString(
                         R.string.results_format, shotsFired, totalElapsedTime));
 
@@ -286,13 +288,13 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
                                 dialogIsDisplayed = false;
-                                newGame(); // Reinicia o jogo
+                                newGame();
                             }
                         }
                 );
 
-                builder.setCancelable(false); // Impede fechar clicando fora
-                builder.show(); // Mostra a janela imediatamente
+                builder.setCancelable(false);
+                builder.show();
             }
         });
     }
@@ -311,17 +313,18 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
 
     public void testForCollisions() {
         if (cannon.getCannonball() != null && cannon.getCannonball().isOnScreen()) {
-            for (int n = 0; n < targets.size(); n++) {
-                if (cannon.getCannonball().collidesWith(targets.get(n))) {
-                    targets.get(n).playSound();
-                    timeLeft += targets.get(n).getHitReward();
+            for (Target target : targets) {
+                if (!target.isHit() && cannon.getCannonball().collidesWith(target)) {
+                    target.onHit();
+                    target.playSound();
+                    timeLeft += target.getHitReward();
                     cannon.removeCannonball();
-                    targets.remove(n);
-                    --n;
                     break;
                 }
             }
-        } else { return; }
+        } else {
+            return;
+        }
 
         if (cannon.getCannonball() != null && cannon.getCannonball().collidesWith(blocker)) {
             blocker.playSound();
