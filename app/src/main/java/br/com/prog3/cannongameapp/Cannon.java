@@ -34,9 +34,9 @@ public class Cannon {
         int velocityY = (int) (CannonView.CANNONBALL_SPEED_PERCENT * view.getScreenWidth() * -Math.cos(barrelAngle));
         int radius = (int) (view.getScreenHeight() * CannonView.CANNONBALL_RADIUS_PERCENT);
 
-        cannonball = new Cannonball(view, Color.BLACK, CannonView.CANNON_SOUND_ID, -radius,
+        cannonball = new Cannonball(view, Color.BLACK, CannonView.CANNON_SOUND_ID, 0,
                 view.getScreenHeight() / 2 - radius, radius, velocityX, velocityY);
-        cannonball.playSound();
+        // cannonball.playSound(); <-- Removido daqui
     }
 
     public void draw(Canvas canvas) {
