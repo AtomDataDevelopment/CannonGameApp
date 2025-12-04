@@ -1,27 +1,27 @@
 package br.com.prog3.cannongameapp;
 
-import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.app.Dialog;
-import android.app.DialogFragment;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Point;
-import android.graphics.RectF;
+import android.graphics.drawable.ColorDrawable;
 import android.media.AudioAttributes;
 import android.media.SoundPool;
-import android.os.Build;
-import android.os.Bundle;
 import android.util.AttributeSet;
 import android.util.SparseIntArray;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
+import android.view.Window;
+import android.widget.Button;
+import android.widget.TextView;
+
+import androidx.annotation.NonNull;
+
 import java.util.ArrayList;
 import java.util.Random;
 
@@ -47,7 +47,7 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     public static final double TEXT_SIZE_PERCENT = 1.0 / 18;
 
     private CannonThread cannonThread;
-    private Activity activity;
+    private final Activity activity;
     private boolean dialogIsDisplayed = false;
 
     private Cannon cannon;
@@ -67,12 +67,12 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     public static final int CANNON_SOUND_ID = 1;
     public static final int BLOCKER_SOUND_ID = 2;
     private SoundPool soundPool;
-    private SparseIntArray soundMap;
+    private final SparseIntArray soundMap;
 
-    private Paint textPaint;
-    private Paint backgroundPaint;
-    private Paint timerBarPaint;
-    private Paint timerBarBackgroundPaint;
+    private final Paint textPaint;
+    private final Paint backgroundPaint;
+    private final Paint timerBarPaint;
+    private final Paint timerBarBackgroundPaint;
 
     public CannonView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -118,7 +118,7 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     @Override
-    public void surfaceCreated(SurfaceHolder holder) {
+    public void surfaceCreated(@NonNull SurfaceHolder holder) {
         if (!dialogIsDisplayed) {
             newGame();
             cannonThread = new CannonThread(holder);
@@ -128,10 +128,10 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     @Override
-    public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) { }
+    public void surfaceChanged(@NonNull SurfaceHolder holder, int format, int width, int height) { }
 
     @Override
-    public void surfaceDestroyed(SurfaceHolder holder) {
+    public void surfaceDestroyed(@NonNull SurfaceHolder holder) {
         boolean retry = true;
         cannonThread.setRunning(false);
         while (retry) {
@@ -145,17 +145,26 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     @Override
+    public boolean performClick() {
+        super.performClick();
+        return true;
+    }
+
+    @Override
     public boolean onTouchEvent(MotionEvent e) {
         int action = e.getAction();
         if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_MOVE) {
             alignAndFireCannonball(e);
         }
+        if (action == MotionEvent.ACTION_UP) {
+             performClick();
+        }
         return true;
     }
 
     private class CannonThread extends Thread {
-        private SurfaceHolder surfaceHolder;
-        private boolean threadIsRunning = true;
+        private final SurfaceHolder surfaceHolder;
+        private volatile boolean threadIsRunning = true;
 
         public CannonThread(SurfaceHolder holder) {
             surfaceHolder = holder;
@@ -214,7 +223,7 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
                     (int) (TARGET_LENGTH_PERCENT * screenHeight),
                     (int) velocity));
 
-            targetX += (TARGET_WIDTH_PERCENT + TARGET_SPACING_PERCENT) * screenWidth;
+            targetX += (int) ((TARGET_WIDTH_PERCENT + TARGET_SPACING_PERCENT) * screenWidth);
         }
 
         blocker = new Blocker(this, Color.BLACK, MISS_PENALTY,
@@ -264,7 +273,7 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
 
     public void alignAndFireCannonball(MotionEvent event) {
         Point touchPoint = new Point((int) event.getX(), (int) event.getY());
-        double centerMinusY = (screenHeight / 2 - touchPoint.y);
+        double centerMinusY = (screenHeight / 2.0 - touchPoint.y);
         double angle = 0;
         if (centerMinusY != 0)
             angle = Math.atan2(touchPoint.x, centerMinusY);
@@ -278,33 +287,33 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     private void showGameOverDialog(final int messageId) {
-        // Executa na UI Thread para poder mexer na tela
-        activity.runOnUiThread(new Runnable() {
-            public void run() {
-                showSystemBars(); // Mostra a barra para o usuário poder sair se quiser
+        activity.runOnUiThread(() -> {
+            showSystemBars();
 
-                // Cria o alerta direto, sem envolver Fragmentos complicados
-                AlertDialog.Builder builder = new AlertDialog.Builder(activity);
+            final Dialog dialog = new Dialog(activity);
+            dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+            dialog.setContentView(R.layout.dialog_game_over);
+            dialog.setCancelable(false);
 
-                builder.setTitle(getResources().getString(messageId)); // Título (Venceu/Perdeu)
-
-                // Corpo da mensagem (Disparos, Tempo e Pontuação)
-                builder.setMessage(getResources().getString(
-                        R.string.results_format, shotsFired, totalElapsedTime, score));
-
-                builder.setPositiveButton(R.string.reset_game,
-                        new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                dialogIsDisplayed = false;
-                                newGame(); // Reinicia o jogo
-                            }
-                        }
-                );
-
-                builder.setCancelable(false); // Impede fechar clicando fora
-                builder.show(); // Mostra a janela imediatamente
+            if (dialog.getWindow() != null) {
+                dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
             }
+
+            TextView tvTitle = dialog.findViewById(R.id.tvTitle);
+            TextView tvMessage = dialog.findViewById(R.id.tvMessage);
+            Button btnRestart = dialog.findViewById(R.id.btnRestart);
+
+            tvTitle.setText(getResources().getString(messageId));
+            tvMessage.setText(getResources().getString(R.string.results_format, shotsFired, totalElapsedTime, score));
+
+            btnRestart.setOnClickListener(v -> {
+                dialog.dismiss();
+                dialogIsDisplayed = false;
+                hideSystemBars();
+                newGame();
+            });
+
+            dialog.show();
         });
     }
 
@@ -395,23 +404,19 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     private void hideSystemBars() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
-                            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
-                            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
-                            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
-                            View.SYSTEM_UI_FLAG_FULLSCREEN |
-                            View.SYSTEM_UI_FLAG_IMMERSIVE);
-        }
+        setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
+                        View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
+                        View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
+                        View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+                        View.SYSTEM_UI_FLAG_FULLSCREEN |
+                        View.SYSTEM_UI_FLAG_IMMERSIVE);
     }
 
     private void showSystemBars() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
-                            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
-                            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
-        }
+        setSystemUiVisibility(
+                View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
+                        View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
+                        View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
     }
 }
