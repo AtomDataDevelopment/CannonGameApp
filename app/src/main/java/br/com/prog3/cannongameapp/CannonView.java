@@ -11,6 +11,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Point;
+import android.graphics.RectF;
 import android.media.AudioAttributes;
 import android.media.SoundPool;
 import android.os.Build;
@@ -60,6 +61,7 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     private double timeLeft;
     private int shotsFired;
     private double totalElapsedTime;
+    private int score;
 
     public static final int TARGET_SOUND_ID = 0;
     public static final int CANNON_SOUND_ID = 1;
@@ -69,6 +71,8 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
 
     private Paint textPaint;
     private Paint backgroundPaint;
+    private Paint timerBarPaint;
+    private Paint timerBarBackgroundPaint;
 
     public CannonView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -91,6 +95,11 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         textPaint = new Paint();
         backgroundPaint = new Paint();
         backgroundPaint.setColor(Color.WHITE);
+
+        timerBarPaint = new Paint();
+        timerBarPaint.setColor(Color.GREEN);
+        timerBarBackgroundPaint = new Paint();
+        timerBarBackgroundPaint.setColor(Color.LTGRAY);
     }
 
     public void playSound(int soundId) {
@@ -217,6 +226,7 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
 
         timeLeft = 10;
         shotsFired = 0;
+        score = 0;
         totalElapsedTime = 0.0;
 
         if (gameOver) {
@@ -246,6 +256,7 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
 
         if (targets.isEmpty()) {
             cannonThread.setRunning(false);
+            score += (int) (timeLeft * 100); // Bonus de tempo
             showGameOverDialog(R.string.win);
             gameOver = true;
         }
@@ -277,9 +288,9 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
 
                 builder.setTitle(getResources().getString(messageId)); // Título (Venceu/Perdeu)
 
-                // Corpo da mensagem (Disparos e Tempo)
+                // Corpo da mensagem (Disparos, Tempo e Pontuação)
                 builder.setMessage(getResources().getString(
-                        R.string.results_format, shotsFired, totalElapsedTime));
+                        R.string.results_format, shotsFired, totalElapsedTime, score));
 
                 builder.setPositiveButton(R.string.reset_game,
                         new DialogInterface.OnClickListener() {
@@ -299,8 +310,44 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
 
     public void drawGameElements(Canvas canvas) {
         canvas.drawRect(0, 0, canvas.getWidth(), canvas.getHeight(), backgroundPaint);
+        
+        // Desenha a barra de tempo
+        float barX = 30;
+        float barY = 60;
+        float barWidth = 200;
+        float barHeight = 30;
+        float timePercentage = (float) (timeLeft / 10.0); 
+        
+        canvas.drawRect(barX, barY, barX + barWidth, barY + barHeight, timerBarBackgroundPaint);
+        
+        // Muda a cor da barra conforme o tempo acaba
+        if (timePercentage > 0.5) {
+            timerBarPaint.setColor(Color.GREEN);
+        } else if (timePercentage > 0.2) {
+            timerBarPaint.setColor(Color.YELLOW);
+        } else {
+            timerBarPaint.setColor(Color.RED);
+        }
+        
+        canvas.drawRect(barX, barY, barX + (barWidth * timePercentage), barY + barHeight, timerBarPaint);
+        
+        // Texto do tempo logo acima da barra
         canvas.drawText(getResources().getString(R.string.time_remaining_format, timeLeft),
                 30, 50, textPaint);
+
+        // Texto de Pontuação
+        String scoreText = getResources().getString(R.string.score_format, score);
+        float scoreWidth = textPaint.measureText(scoreText);
+        
+        // Desenhando a pontuação com uma "sombra" para destaque
+        Paint shadowPaint = new Paint(textPaint);
+        shadowPaint.setColor(Color.DKGRAY);
+        canvas.drawText(scoreText, canvas.getWidth() - scoreWidth - 28, 52, shadowPaint);
+        
+        // Cor original do texto
+        textPaint.setColor(Color.BLACK); // Garantindo que seja preto
+        canvas.drawText(scoreText, canvas.getWidth() - scoreWidth - 30, 50, textPaint);
+
         cannon.draw(canvas);
         if (cannon.getCannonball() != null && cannon.getCannonball().isOnScreen())
             cannon.getCannonball().draw(canvas);
@@ -315,6 +362,7 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
                 if (cannon.getCannonball().collidesWith(targets.get(n))) {
                     targets.get(n).playSound();
                     timeLeft += targets.get(n).getHitReward();
+                    score += 100;
                     cannon.removeCannonball();
                     targets.remove(n);
                     --n;
@@ -327,6 +375,8 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
             blocker.playSound();
             cannon.getCannonball().reverseVelocityX();
             timeLeft -= blocker.getMissPenalty();
+            score -= 15;
+            if (score < 0) score = 0;
         }
     }
 
