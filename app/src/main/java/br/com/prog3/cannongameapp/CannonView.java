@@ -24,6 +24,8 @@ import android.view.View;
 import java.util.ArrayList;
 import java.util.Random;
 
+import androidx.core.content.ContextCompat; // Importado para obter cores do tema
+
 public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     public static final int MISS_PENALTY = 2;
     public static final int HIT_REWARD = 3;
@@ -70,6 +72,10 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     private Paint textPaint;
     private Paint backgroundPaint;
 
+    // VARIÁVEIS PARA CORES DO TEMA
+    private int colorBackground;
+    private int colorText;
+
     // Variáveis para controle de recarga
     private long lastFireTime = 0;
     private static final int RELOAD_DELAY = 500; // 500 milissegundos
@@ -95,7 +101,25 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
 
         textPaint = new Paint();
         backgroundPaint = new Paint();
-        backgroundPaint.setColor(Color.WHITE);
+
+        // NOVO: Carrega as cores do tema na inicialização
+        loadThemeColors(context);
+    }
+
+    // NOVO MÉTODO: Função auxiliar para obter cor do recurso com tema
+    public static int getThemeColor(Context context, int colorResourceId) {
+        return ContextCompat.getColor(context, colorResourceId);
+    }
+
+    // NOVO MÉTODO: Carrega as cores do tema Diurno/Noturno
+    private void loadThemeColors(Context context) {
+        // Cenário (Fundo)
+        colorBackground = getThemeColor(context, R.color.cor_cenario_fundo_id);
+        backgroundPaint.setColor(colorBackground);
+
+        // Texto (Tempo Restante)
+        colorText = getThemeColor(context, R.color.cor_texto_id);
+        textPaint.setColor(colorText);
     }
 
     public void playSound(int soundId) {
@@ -228,6 +252,9 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     public void newGame() {
+        // NOVO: Recarrega as cores ao iniciar novo jogo (importante após recreate())
+        loadThemeColors(getContext());
+
         cannon = new Cannon(this,
                 (int) (CANNON_BASE_RADIUS_PERCENT * screenHeight),
                 (int) (CANNON_BARREL_LENGTH_PERCENT * screenWidth),
@@ -241,8 +268,10 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
 
         for (int n = 0; n < TARGET_PIECES; n++) {
             double velocity = screenHeight * (random.nextDouble() * (TARGET_MAX_SPEED_PERCENT - TARGET_MIN_SPEED_PERCENT) + TARGET_MIN_SPEED_PERCENT);
-            int color = (n % 2 == 0) ? getResources().getColor(R.color.dark, getContext().getTheme())
-                    : getResources().getColor(R.color.light, getContext().getTheme());
+
+            // MUDANÇA: Usa cores dinâmicas para os targets (elementos)
+            int color = (n % 2 == 0) ? getThemeColor(getContext(), R.color.cor_elemento_padrao_id)
+                    : getThemeColor(getContext(), R.color.cor_elemento_alternativo_id);
             velocity *= -1;
 
             targets.add(new Target(this, color, HIT_REWARD, targetX, targetY,
@@ -253,7 +282,8 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
             targetX += (TARGET_WIDTH_PERCENT + TARGET_SPACING_PERCENT) * screenWidth;
         }
 
-        blocker = new Blocker(this, Color.BLACK, MISS_PENALTY,
+        // MUDANÇA: Usa cor dinâmica para o Blocker (elemento)
+        blocker = new Blocker(this, getThemeColor(getContext(), R.color.cor_elemento_bloco_id), MISS_PENALTY,
                 (int) (BLOCKER_X_PERCENT * screenWidth),
                 (int) ((0.5 - BLOCKER_LENGTH_PERCENT / 2) * screenHeight),
                 (int) (BLOCKER_WIDTH_PERCENT * screenWidth),
@@ -335,7 +365,10 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     public void drawGameElements(Canvas canvas) {
+        // Usa backgroundPaint, que tem a cor do tema
         canvas.drawRect(0, 0, canvas.getWidth(), canvas.getHeight(), backgroundPaint);
+
+        // Usa textPaint, que tem a cor do tema
         canvas.drawText(getResources().getString(R.string.time_remaining_format, timeLeft),
                 30, 50, textPaint);
         cannon.draw(canvas);
@@ -379,6 +412,8 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         screenHeight = h;
         textPaint.setTextSize((int) (TEXT_SIZE_PERCENT * screenHeight));
         textPaint.setAntiAlias(true);
+        // Garantindo que a cor do texto do tema esteja aplicada
+        textPaint.setColor(colorText);
     }
 
     private void hideSystemBars() {
