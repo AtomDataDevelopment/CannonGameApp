@@ -360,11 +360,41 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
             }
         } else { return; }
 
-        if (cannon.getCannonball() != null && cannon.getCannonball().collidesWith(blocker)) {
+        if (cannon.getCannonball() != null && checkCircleRectangleCollision(cannon.getCannonball(), blocker)) {
             blocker.playSound();
             cannon.getCannonball().reverseVelocityX();
             timeLeft -= blocker.getMissPenalty();
         }
+    }
+
+    /**
+     * Verifica a colisão entre um círculo (projétil) e um retângulo (obstáculo).
+     *
+     * @param cannonball O projétil do canhão.
+     * @param blockerO obstáculo.
+     * @return true se houver colisão, false caso contrário.
+     */
+    public boolean checkCircleRectangleCollision(Cannonball cannonball, Blocker blocker) {
+        // Coordenadas do centro do círculo (projétil)
+        float circleX = cannonball.shape.centerX();
+        float circleY = cannonball.shape.centerY();
+        float radius = cannonball.getRadius();
+
+        // Encontra o ponto mais próximo no retângulo em relação ao centro do círculo
+        // A função Math.max(min, value) e Math.min(max, value) "prende" o valor dentro do intervalo
+        float closestX = Math.max(blocker.shape.left, Math.min(circleX, blocker.shape.right));
+        float closestY = Math.max(blocker.shape.top, Math.min(circleY, blocker.shape.bottom));
+
+        // Calcula a distância entre o centro do círculo e o ponto mais próximo encontrado
+        float distanceX = circleX - closestX;
+        float distanceY = circleY - closestY;
+
+        // Usa o Teorema de Pitágoras para encontrar a distância ao quadrado
+        float distanceSquared = (distanceX * distanceX) + (distanceY * distanceY);
+
+        // Verifica se a distância ao quadrado é menor que o raio ao quadrado
+        // Usar a distância ao quadrado evita o cálculo da raiz quadrada, que é computacionalmente mais caro
+        return distanceSquared < (radius * radius);
     }
 
     public void stopGame() {
