@@ -29,14 +29,14 @@ public class Cannon {
         barrelEnd.y = (int) (-barrelLength * Math.cos(barrelAngle)) + view.getScreenHeight() / 2;
     }
 
-    public void fireCannonball() {
-        int velocityX = (int) (CannonView.CANNONBALL_SPEED_PERCENT * view.getScreenWidth() * Math.sin(barrelAngle));
-        int velocityY = (int) (CannonView.CANNONBALL_SPEED_PERCENT * view.getScreenWidth() * -Math.cos(barrelAngle));
+    // O método fireCannonball agora aceita um multiplicador de potência
+    public void fireCannonball(float power) {
+        int velocityX = (int) (power * CannonView.CANNONBALL_SPEED_PERCENT * view.getScreenWidth() * Math.sin(barrelAngle));
+        int velocityY = (int) (power * CannonView.CANNONBALL_SPEED_PERCENT * view.getScreenWidth() * -Math.cos(barrelAngle));
         int radius = (int) (view.getScreenHeight() * CannonView.CANNONBALL_RADIUS_PERCENT);
 
         cannonball = new Cannonball(view, Color.BLACK, CannonView.CANNON_SOUND_ID, 0,
                 view.getScreenHeight() / 2 - radius, radius, velocityX, velocityY);
-        // cannonball.playSound(); <-- Removido daqui
     }
 
     public void draw(Canvas canvas) {
