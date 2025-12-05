@@ -20,7 +20,7 @@ public class Cannon {
         this.barrelLength = barrelLength;
         paint.setStrokeWidth(barrelWidth);
         paint.setColor(Color.BLACK);
-        align(Math.PI / 2); // Aponta para a direita
+        align(Math.PI / 2);
     }
 
     public void align(double barrelAngle) {
@@ -36,7 +36,6 @@ public class Cannon {
 
         cannonball = new Cannonball(view, Color.BLACK, CannonView.CANNON_SOUND_ID, 0,
                 view.getScreenHeight() / 2 - radius, radius, velocityX, velocityY);
-        // cannonball.playSound(); <-- Removido daqui
     }
 
     public void draw(Canvas canvas) {
