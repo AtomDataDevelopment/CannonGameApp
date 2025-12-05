@@ -3,7 +3,24 @@
 
     <string name="win">Você Venceu!</string>
     <string name="lose">Fim de Jogo!</string>
-    <string name="results_format">Disparos: %1$d\nTempo Total: %2$.1f</string>
+    <string name="results_format">Disparos: %1$d\nTempo Total: %2$.1f s\nPontuação Final: %3$d</string>
     <string name="reset_game">Reiniciar Jogo</string>
     <string name="time_remaining_format">Tempo: %.1f s</string>
+
+    <!-- CORREÇÃO DO ERRO 1: Adicione este score_format -->
+    <string name="score_format">Score: %d</string>
+
+    
+    <!-- Textos do Jogo -->
+    <!-- <string name="win">VOCÊ VENCEU!</string> -->
+
+    <!-- <string name="lose">GAME OVER</string> -->
+
+    <!-- <string name="reset_game">Reiniciar</string> -->
+
+
+    <!-- CORREÇÃO DO ERRO 2: O results_format precisa aceitar 3 valores: Tiros, Tempo e Score -->
+    <!-- O erro "requires 2 but supplies 3" acontece porque seu código Java envia 3 coisas, mas o XML só esperava 2 -->
+    <!-- <string name="results_format">Disparos: %1$d\nTempo Total: %2$.1f s\nPontuação Final: %3$d
+    </string> -->
 </resources>

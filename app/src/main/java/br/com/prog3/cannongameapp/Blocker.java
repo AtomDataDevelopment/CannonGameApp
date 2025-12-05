@@ -1,5 +1,7 @@
 package br.com.prog3.cannongameapp;
 
+import android.graphics.Rect; // <--- NÃO ESQUEÇA DESTA IMPORTAÇÃO
+
 public class Blocker extends GameElement {
     private int missPenalty; // Penalidade de tempo
 
@@ -11,5 +13,10 @@ public class Blocker extends GameElement {
 
     public int getMissPenalty() {
         return missPenalty;
+    }
+
+    // --- ADICIONE ESTE MÉTODO PARA CORRIGIR O ERRO ---
+    public Rect getRect() {
+        return shape; // 'shape' é a variável herdada de GameElement
     }
 }
