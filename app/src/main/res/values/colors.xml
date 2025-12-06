@@ -4,4 +4,4 @@
     <color name="colorPrimaryDark">#3700B3</color>
     <color name="colorAccent">#03DAC5</color>
 
-    <color name="cor_cenario_fundo_id">#ADD8E6</color> <color name="cor_texto_id">#000000</color> <color name="cor_canhao_principal_id">#FF0000</color> <color name="cor_particula_id">#FFA500</color> <color name="cor_elemento_bloco_id">#000000</color> <color name="cor_elemento_padrao_id">#00FF00</color> <color name="cor_elemento_alternativo_id">#008000</color> </resources>
+    <color name="cor_cenario_fundo_id">#FFFFFF</color> <color name="cor_texto_id">#000000</color> <color name="cor_canhao_principal_id">#090909</color> <color name="cor_particula_id">#FFA500</color> <color name="cor_elemento_bloco_id">#000000</color> <color name="cor_elemento_padrao_id">#00FF00</color> <color name="cor_elemento_alternativo_id">#008000</color> </resources>
