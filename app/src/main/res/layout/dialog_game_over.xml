@@ -14,6 +14,7 @@
         android:padding="24dp"
         android:gravity="center">
 
+        <!-- Título (Vitória/Derrota) -->
         <TextView
             android:id="@+id/tvTitle"
             android:layout_width="wrap_content"
@@ -23,6 +24,7 @@
             android:textStyle="bold"
             android:textColor="#333333"/>
 
+        <!-- Mensagem (Score/Tempo) -->
         <TextView
             android:id="@+id/tvMessage"
             android:layout_width="wrap_content"
@@ -33,6 +35,22 @@
             android:textSize="18sp"
             android:textColor="#666666"/>
 
+        <!-- RANKING (Faltava este bloco aqui) -->
+        <TextView
+            android:id="@+id/tvHighScores"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:layout_marginBottom="12dp"
+            android:background="#EEEEEE"
+            android:padding="8dp"
+            android:text="Carregando Ranking..."
+            android:textAlignment="center"
+            android:textColor="#444"
+            android:textSize="14sp"
+            android:textStyle="bold" />
+
+        <!-- Botão Reiniciar -->
         <Button
             android:id="@+id/btnRestart"
             android:layout_width="match_parent"

@@ -23,6 +23,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Random;
 
 public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
@@ -63,6 +64,15 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     private double totalElapsedTime;
     private int score;
 
+    // NOVAS VARIÁVEIS
+    private int comboMultiplier = 1; 
+    private final ArrayList<FloatingText> floatingTexts = new ArrayList<>(); 
+    private final ArrayList<Particle> particles = new ArrayList<>();
+    private final Paint hudPaint; 
+    private final Paint comboPaint;
+    
+    private final HighScoreManager highScoreManager;
+
     public static final int TARGET_SOUND_ID = 0;
     public static final int CANNON_SOUND_ID = 1;
     public static final int BLOCKER_SOUND_ID = 2;
@@ -77,6 +87,7 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     public CannonView(Context context, AttributeSet attrs) {
         super(context, attrs);
         activity = (Activity) context;
+        highScoreManager = new HighScoreManager(context);
         getHolder().addCallback(this);
 
         AudioAttributes.Builder attrBuilder = new AudioAttributes.Builder();
@@ -100,6 +111,18 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         timerBarPaint.setColor(Color.GREEN);
         timerBarBackgroundPaint = new Paint();
         timerBarBackgroundPaint.setColor(Color.LTGRAY);
+
+        // Configuração do fundo do HUD (Barra superior)
+        hudPaint = new Paint();
+        hudPaint.setColor(Color.parseColor("#CC222222")); // Cinza escuro semi-transparente
+        hudPaint.setStyle(Paint.Style.FILL);
+
+        // Configuração do texto de Combo (Amarelo e grande)
+        comboPaint = new Paint();
+        comboPaint.setColor(Color.parseColor("#FFD700")); // Dourado
+        comboPaint.setTextAlign(Paint.Align.CENTER);
+        comboPaint.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        comboPaint.setShadowLayer(5, 2, 2, Color.BLACK); // Sombra para destaque
     }
 
     public void playSound(int soundId) {
@@ -238,6 +261,10 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         score = 0;
         totalElapsedTime = 0.0;
 
+        comboMultiplier = 1;
+        floatingTexts.clear();
+        particles.clear();
+
         if (gameOver) {
             gameOver = false;
             cannonThread = new CannonThread(getHolder());
@@ -247,15 +274,42 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         hideSystemBars();
     }
 
-    private void updatePositions(double elapsedTimeMS) {
-        double interval = elapsedTimeMS / 1000.0;
-        if (cannon.getCannonball() != null)
-            cannon.getCannonball().update(interval);
-        blocker.update(interval);
-        for (Target target : targets)
-            target.update(interval);
+    private void createExplosion(float x, float y, int color) {
+        int numberOfParticles = 20; 
+        for (int i = 0; i < numberOfParticles; i++) {
+            particles.add(new Particle(x, y, color));
+        }
+    }
 
-        timeLeft -= interval;
+    private void updatePositions(double elapsedTimeMS) {
+        double interval = elapsedTimeMS; 
+        double intervalSeconds = interval / 1000.0;
+
+        if (cannon.getCannonball() != null)
+            cannon.getCannonball().update(intervalSeconds);
+        
+        blocker.update(intervalSeconds);
+        
+        for (Target target : targets)
+            target.update(intervalSeconds);
+
+        for (int i = 0; i < floatingTexts.size(); i++) {
+            boolean isAlive = floatingTexts.get(i).update(interval);
+            if (!isAlive) {
+                floatingTexts.remove(i);
+                i--;
+            }
+        }
+
+        for (int i = 0; i < particles.size(); i++) {
+            boolean isAlive = particles.get(i).update(interval); 
+            if (!isAlive) {
+                particles.remove(i);
+                i--;
+            }
+        }
+
+        timeLeft -= intervalSeconds;
         if (timeLeft <= 0) {
             timeLeft = 0.0;
             gameOver = true;
@@ -265,7 +319,7 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
 
         if (targets.isEmpty()) {
             cannonThread.setRunning(false);
-            score += (int) (timeLeft * 100); // Bonus de tempo
+            score += (int) (timeLeft * 100);
             showGameOverDialog(R.string.win);
             gameOver = true;
         }
@@ -284,9 +338,35 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
             cannon.fireCannonball();
             ++shotsFired;
         }
+        
+        if (cannon.getCannonball() != null && !cannon.getCannonball().isOnScreen()) {
+             comboMultiplier = 1;
+             cannon.removeCannonball(); 
+        }
     }
 
     private void showGameOverDialog(final int messageId) {
+        // 1. SALVA A PONTUAÇÃO ATUAL NO RANKING (PRIMEIRA COISA A FAZER)
+        highScoreManager.addScore(score);
+
+        // 2. RECUPERA A LISTA ATUALIZADA DO RANKING
+        List<Integer> highScores = highScoreManager.getHighScores();
+
+        // 3. MONTA O TEXTO PARA EXIBIR
+        StringBuilder rankingText = new StringBuilder("🏆 RANKING TOP 5 🏆\n");
+        if (highScores.isEmpty()) {
+            rankingText.append("Ainda não há recordes!");
+        } else {
+            for (int i = 0; i < highScores.size(); i++) {
+                rankingText.append(i + 1).append(".  ").append(highScores.get(i)).append(" pts");
+                // Adiciona um marcador se a pontuação atual for a que está sendo listada
+                if (highScores.get(i) == score && score > 0) {
+                    rankingText.append(" (NOVO!)");
+                }
+                rankingText.append("\n");
+            }
+        }
+
         activity.runOnUiThread(() -> {
             showSystemBars();
 
@@ -301,10 +381,13 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
 
             TextView tvTitle = dialog.findViewById(R.id.tvTitle);
             TextView tvMessage = dialog.findViewById(R.id.tvMessage);
+            TextView tvHighScores = dialog.findViewById(R.id.tvHighScores);
             Button btnRestart = dialog.findViewById(R.id.btnRestart);
 
             tvTitle.setText(getResources().getString(messageId));
             tvMessage.setText(getResources().getString(R.string.results_format, shotsFired, totalElapsedTime, score));
+            
+            tvHighScores.setText(rankingText.toString());
 
             btnRestart.setOnClickListener(v -> {
                 dialog.dismiss();
@@ -319,43 +402,6 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
 
     public void drawGameElements(Canvas canvas) {
         canvas.drawRect(0, 0, canvas.getWidth(), canvas.getHeight(), backgroundPaint);
-        
-        // Desenha a barra de tempo
-        float barX = 30;
-        float barY = 60;
-        float barWidth = 200;
-        float barHeight = 30;
-        float timePercentage = (float) (timeLeft / 10.0); 
-        
-        canvas.drawRect(barX, barY, barX + barWidth, barY + barHeight, timerBarBackgroundPaint);
-        
-        // Muda a cor da barra conforme o tempo acaba
-        if (timePercentage > 0.5) {
-            timerBarPaint.setColor(Color.GREEN);
-        } else if (timePercentage > 0.2) {
-            timerBarPaint.setColor(Color.YELLOW);
-        } else {
-            timerBarPaint.setColor(Color.RED);
-        }
-        
-        canvas.drawRect(barX, barY, barX + (barWidth * timePercentage), barY + barHeight, timerBarPaint);
-        
-        // Texto do tempo logo acima da barra
-        canvas.drawText(getResources().getString(R.string.time_remaining_format, timeLeft),
-                30, 50, textPaint);
-
-        // Texto de Pontuação
-        String scoreText = getResources().getString(R.string.score_format, score);
-        float scoreWidth = textPaint.measureText(scoreText);
-        
-        // Desenhando a pontuação com uma "sombra" para destaque
-        Paint shadowPaint = new Paint(textPaint);
-        shadowPaint.setColor(Color.DKGRAY);
-        canvas.drawText(scoreText, canvas.getWidth() - scoreWidth - 28, 52, shadowPaint);
-        
-        // Cor original do texto
-        textPaint.setColor(Color.BLACK); // Garantindo que seja preto
-        canvas.drawText(scoreText, canvas.getWidth() - scoreWidth - 30, 50, textPaint);
 
         cannon.draw(canvas);
         if (cannon.getCannonball() != null && cannon.getCannonball().isOnScreen())
@@ -363,6 +409,50 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         blocker.draw(canvas);
         for (Target target : targets)
             target.draw(canvas);
+
+        Paint particlePaint = new Paint();
+        particlePaint.setAntiAlias(true);
+        particlePaint.setStyle(Paint.Style.FILL);
+
+        for (Particle p : particles) {
+            p.draw(canvas, particlePaint);
+        }
+
+        Paint floatPaint = new Paint(textPaint); 
+        floatPaint.setShadowLayer(3, 1, 1, Color.BLACK); 
+        floatPaint.setTextSize(textPaint.getTextSize() * 0.8f); 
+        
+        for (FloatingText ft : floatingTexts) {
+            ft.draw(canvas, floatPaint);
+        }
+
+        float hudHeight = screenHeight * 0.12f;
+        canvas.drawRect(0, 0, screenWidth, hudHeight, hudPaint);
+
+        float barMargin = 30;
+        float barWidth = screenWidth * 0.3f;
+        float barHeight = 20;
+        float barX = barMargin;
+        float barY = hudHeight / 2 + 10;
+        float timePercentage = (float) (timeLeft / 10.0);
+
+        timerBarBackgroundPaint.setColor(Color.DKGRAY);
+        canvas.drawRect(barX, barY, barX + barWidth, barY + barHeight, timerBarBackgroundPaint);
+
+        int timerColor = timePercentage > 0.5 ? Color.GREEN : (timePercentage > 0.2 ? Color.YELLOW : Color.RED);
+        timerBarPaint.setColor(timerColor);
+        canvas.drawRect(barX, barY, barX + (barWidth * timePercentage), barY + barHeight, timerBarPaint);
+        
+        textPaint.setColor(Color.WHITE);
+        textPaint.setTextAlign(Paint.Align.LEFT);
+        canvas.drawText("TEMPO: " + String.format("%.1f", timeLeft), barX, barY - 10, textPaint);
+
+        textPaint.setTextAlign(Paint.Align.RIGHT);
+        canvas.drawText("SCORE: " + score, screenWidth - barMargin, hudHeight / 2 + 10, textPaint);
+
+        if (comboMultiplier > 1) {
+            canvas.drawText("COMBO x" + comboMultiplier + "!", screenWidth / 2f, hudHeight / 2 + 15, comboPaint);
+        }
     }
 
     public void testForCollisions() {
@@ -370,22 +460,46 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
             for (int n = 0; n < targets.size(); n++) {
                 if (cannon.getCannonball().collidesWith(targets.get(n))) {
                     targets.get(n).playSound();
+                    
+                    int basePoints = 100;
+                    int pointsEarned = basePoints * comboMultiplier;
+                    
                     timeLeft += targets.get(n).getHitReward();
-                    score += 100;
+                    score += pointsEarned;
+
+                    float centerX = targets.get(n).getRect().centerX();
+                    float centerY = targets.get(n).getRect().centerY();
+                    createExplosion(centerX, centerY, targets.get(n).getColor()); 
+
+                    float textX = (targets.get(n).getRect().left + targets.get(n).getRect().right) / 2f;
+                    float textY = targets.get(n).getRect().top;
+                    String msg = "+" + pointsEarned + (comboMultiplier > 1 ? " (x" + comboMultiplier + ")" : "");
+                    
+                    floatingTexts.add(new FloatingText(msg, textX, textY, Color.GREEN, true));
+
+                    comboMultiplier++; 
+
                     cannon.removeCannonball();
                     targets.remove(n);
                     --n;
                     break;
                 }
             }
-        } else { return; }
+        }
 
         if (cannon.getCannonball() != null && cannon.getCannonball().collidesWith(blocker)) {
             blocker.playSound();
             cannon.getCannonball().reverseVelocityX();
+            
             timeLeft -= blocker.getMissPenalty();
             score -= 15;
+            comboMultiplier = 1; 
+
             if (score < 0) score = 0;
+
+            float textX = (blocker.getRect().left + blocker.getRect().right) / 2f;
+            float textY = blocker.getRect().bottom;
+            floatingTexts.add(new FloatingText("-15 Hit!", textX, textY, Color.RED, false));
         }
     }
 
@@ -401,6 +515,7 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         screenHeight = h;
         textPaint.setTextSize((int) (TEXT_SIZE_PERCENT * screenHeight));
         textPaint.setAntiAlias(true);
+        comboPaint.setTextSize(h * 0.08f); 
     }
 
     private void hideSystemBars() {
@@ -418,5 +533,75 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
                 View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
                         View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
                         View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
+    }
+
+    private class FloatingText {
+        String text;
+        float x, y;
+        int color;
+        int alpha = 255; 
+        float velocityY; 
+
+        public FloatingText(String text, float x, float y, int color, boolean isGood) {
+            this.text = text;
+            this.x = x;
+            this.y = y;
+            this.color = color;
+            this.velocityY = isGood ? -screenHeight * 0.001f : screenHeight * 0.001f; 
+        }
+
+        public boolean update(double dt) {
+            y += velocityY * dt;
+            alpha -= 0.15 * dt;
+            
+            if (alpha < 0) alpha = 0;
+            return alpha > 0;
+        }
+
+        public void draw(Canvas canvas, Paint paint) {
+            paint.setColor(color);
+            paint.setAlpha(alpha);
+            canvas.drawText(text, x, y, paint);
+        }
+    }
+
+    private class Particle {
+        float x, y;
+        float velocityX, velocityY;
+        int color;
+        int alpha = 255; 
+        float radius;
+
+        public Particle(float startX, float startY, int color) {
+            this.x = startX;
+            this.y = startY;
+            this.color = color;
+            
+            this.radius = (float) (screenHeight * (0.005 + Math.random() * 0.01));
+
+            double angle = Math.random() * 2 * Math.PI; 
+            double speed = screenHeight * (Math.random() * 0.0005 + 0.0005); 
+            
+            this.velocityX = (float) (Math.cos(angle) * speed);
+            this.velocityY = (float) (Math.sin(angle) * speed);
+        }
+
+        public boolean update(double dt) {
+            x += velocityX * dt;
+            y += velocityY * dt;
+            
+            alpha -= (int)(0.4 * dt); 
+            
+            radius *= 0.95; 
+
+            if (alpha < 0) alpha = 0;
+            return alpha > 0; 
+        }
+
+        public void draw(Canvas canvas, Paint paint) {
+            paint.setColor(color);
+            paint.setAlpha(alpha);
+            canvas.drawCircle(x, y, radius, paint);
+        }
     }
 }
