@@ -1,7 +1,6 @@
 package br.com.prog3.cannongameapp;
 
 import android.graphics.Canvas;
-import android.graphics.Rect;
 
 public class Cannonball extends GameElement {
     private boolean onScreen;
@@ -17,10 +16,6 @@ public class Cannonball extends GameElement {
 
     public int getRadius() {
         return (shape.right - shape.left) / 2;
-    }
-
-    public boolean collidesWith(GameElement element) {
-        return Rect.intersects(shape, element.shape);
     }
 
     public boolean isOnScreen() {
