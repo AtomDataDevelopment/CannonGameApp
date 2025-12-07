@@ -31,11 +31,9 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     public static final double CANNONBALL_SPEED_PERCENT = 3.0 / 2;
     public static final double TARGET_WIDTH_PERCENT = 1.0 / 40;
     public static final double TARGET_LENGTH_PERCENT = 3.0 / 20;
-    public static final double TARGET_FIRST_X_PERCENT = 3.0 / 5;
-    public static final double TARGET_SPACING_PERCENT = 1.0 / 60;
     public static final double TARGET_PIECES = 9;
-    public static final double TARGET_MIN_SPEED_PERCENT = 3.0 / 4;
-    public static final double TARGET_MAX_SPEED_PERCENT = 6.0 / 4;
+    public static final double TARGET_MIN_SPEED_PERCENT = 3.0 / 8;
+    public static final double TARGET_MAX_SPEED_PERCENT = 6.0 / 8;
     public static final double BLOCKER_WIDTH_PERCENT = 1.0 / 40;
     public static final double BLOCKER_LENGTH_PERCENT = 1.0 / 4;
     public static final double BLOCKER_X_PERCENT = 1.0 / 2;
@@ -71,7 +69,7 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     private int colorText;
 
     private long lastFireTime = 0;
-    private static final int RELOAD_DELAY = 500; // 500 milissegundos
+    private static final int RELOAD_DELAY = 500;
     private boolean canFire = true;
 
     public CannonView(Context context, AttributeSet attrs) {
@@ -159,7 +157,7 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         switch (maskedAction) {
             case MotionEvent.ACTION_DOWN:
             case MotionEvent.ACTION_POINTER_DOWN:
-                if (e.getX(pointerIndex) >= screenWidth / 2) { // Dedo na área direita (disparo)
+                if (e.getX(pointerIndex) >= screenWidth / 2) {
                     fireCannon();
                 } else {
                     alignCannon(e.getX(pointerIndex), e.getY(pointerIndex));
@@ -167,7 +165,7 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
                 break;
             case MotionEvent.ACTION_MOVE:
                 for (int i = 0; i < e.getPointerCount(); i++) {
-                    if (e.getX(i) < screenWidth / 2) { // Dedo na área esquerda (mira)
+                    if (e.getX(i) < screenWidth / 2) {
                         alignCannon(e.getX(i), e.getY(i));
                     }
                 }
@@ -245,22 +243,24 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         Random random = new Random();
         targets = new ArrayList<>();
 
-        int targetX = (int) (TARGET_FIRST_X_PERCENT * screenWidth);
-        int targetY = (int) ((0.5 - TARGET_LENGTH_PERCENT / 2) * screenHeight);
+        int targetWidth = (int) (TARGET_WIDTH_PERCENT * screenWidth);
+        int targetLength = (int) (TARGET_LENGTH_PERCENT * screenHeight);
 
         for (int n = 0; n < TARGET_PIECES; n++) {
-            double velocity = screenHeight * (random.nextDouble() * (TARGET_MAX_SPEED_PERCENT - TARGET_MIN_SPEED_PERCENT) + TARGET_MIN_SPEED_PERCENT);
+            int targetX = random.nextInt(screenWidth / 2 - targetWidth) + screenWidth / 2;
+            int targetY = random.nextInt(screenHeight - targetLength);
 
+            double velocityY = screenHeight * (random.nextDouble() * (TARGET_MAX_SPEED_PERCENT - TARGET_MIN_SPEED_PERCENT) + TARGET_MIN_SPEED_PERCENT);
+            double velocityX = screenHeight * (random.nextDouble() * (TARGET_MAX_SPEED_PERCENT - TARGET_MIN_SPEED_PERCENT) + TARGET_MIN_SPEED_PERCENT);
             int color = (n % 2 == 0) ? getThemeColor(getContext(), R.color.cor_elemento_padrao_id)
                     : getThemeColor(getContext(), R.color.cor_elemento_alternativo_id);
-            velocity *= -1;
+            velocityY *= -1;
+            if (random.nextBoolean()) {
+                velocityX *= -1;
+            }
 
             targets.add(new Target(this, color, HIT_REWARD, targetX, targetY,
-                    (int) (TARGET_WIDTH_PERCENT * screenWidth),
-                    (int) (TARGET_LENGTH_PERCENT * screenHeight),
-                    (int) velocity));
-
-            targetX += (TARGET_WIDTH_PERCENT + TARGET_SPACING_PERCENT) * screenWidth;
+                    targetWidth, targetLength, (float) velocityY, (float) velocityX));
         }
 
         blocker = new Blocker(this, getThemeColor(getContext(), R.color.cor_elemento_bloco_id), MISS_PENALTY,
@@ -270,7 +270,7 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
                 (int) (BLOCKER_LENGTH_PERCENT * screenHeight),
                 (float) (BLOCKER_SPEED_PERCENT * screenHeight));
 
-        timeLeft = 10;
+        timeLeft = 30;
         shotsFired = 0;
         totalElapsedTime = 0.0;
         canFire = true;
@@ -292,6 +292,65 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         blocker.update(interval);
         for (Target target : targets)
             target.update(interval);
+
+        int midScreenX = (int) (screenWidth * 0.6);
+        int ceilingY = (int) (screenHeight * 0.05);
+
+        for (Target target : targets) {
+            // Mid-screen boundary for targets
+            if (target.shape.left < midScreenX) {
+                target.shape.offsetTo(midScreenX, target.shape.top);
+                target.velocityX *= -1;
+            }
+
+            // Ceiling boundary for targets
+            if (target.shape.top < ceilingY) {
+                target.shape.offsetTo(target.shape.left, ceilingY);
+                target.velocityY *= -1;
+            }
+
+            // Target-Blocker collision
+            if (target.collidesWith(blocker)) {
+                target.velocityX *= -1;
+            }
+        }
+
+        for (int i = 0; i < targets.size(); i++) {
+            Target target1 = targets.get(i);
+            for (int j = i + 1; j < targets.size(); j++) {
+                Target target2 = targets.get(j);
+                if (target1.collidesWith(target2)) {
+                    int overlapX = Math.min(target1.shape.right, target2.shape.right) - Math.max(target1.shape.left, target2.shape.left);
+                    int overlapY = Math.min(target1.shape.bottom, target2.shape.bottom) - Math.max(target1.shape.top, target2.shape.top);
+
+                    if (overlapX > 0 && overlapY > 0) {
+                        if (overlapX < overlapY) {
+                            if (target1.shape.centerX() < target2.shape.centerX()) {
+                                target1.shape.offset(-overlapX / 2, 0);
+                                target2.shape.offset(overlapX / 2, 0);
+                            } else {
+                                target1.shape.offset(overlapX / 2, 0);
+                                target2.shape.offset(-overlapX / 2, 0);
+                            }
+                            float tempVx = target1.velocityX;
+                            target1.velocityX = target2.velocityX;
+                            target2.velocityX = tempVx;
+                        } else {
+                            if (target1.shape.centerY() < target2.shape.centerY()) {
+                                target1.shape.offset(0, -overlapY / 2);
+                                target2.shape.offset(0, overlapY / 2);
+                            } else {
+                                target1.shape.offset(0, overlapY / 2);
+                                target2.shape.offset(0, -overlapY / 2);
+                            }
+                            float tempVy = target1.velocityY;
+                            target1.velocityY = target2.velocityY;
+                            target2.velocityY = tempVy;
+                        }
+                    }
+                }
+            }
+        }
 
         timeLeft -= interval;
         if (timeLeft <= 0) {
@@ -315,11 +374,11 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     private void showGameOverDialog(final int messageId) {
         activity.runOnUiThread(new Runnable() {
             public void run() {
-                showSystemBars(); // Mostra a barra para o usuário poder sair se quiser
+                showSystemBars();
 
                 AlertDialog.Builder builder = new AlertDialog.Builder(activity);
 
-                builder.setTitle(getResources().getString(messageId)); // Título (Venceu/Perdeu)
+                builder.setTitle(getResources().getString(messageId));
 
                 builder.setMessage(getResources().getString(
                         R.string.results_format, shotsFired, totalElapsedTime));
@@ -361,6 +420,11 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
                     timeLeft += targets.get(n).getHitReward();
                     cannon.removeCannonball();
                     targets.remove(n);
+
+                    for (Target remainingTarget : targets) {
+                        remainingTarget.increaseVelocity(1.3f);
+                    }
+
                     --n;
                     break;
                 }
@@ -370,6 +434,7 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         if (cannon.getCannonball() != null && checkCircleRectangleCollision(cannon.getCannonball(), blocker)) {
             blocker.playSound();
             cannon.getCannonball().reverseVelocityX();
+            cannon.getCannonball().registerBounce();
             timeLeft -= blocker.getMissPenalty();
         }
     }

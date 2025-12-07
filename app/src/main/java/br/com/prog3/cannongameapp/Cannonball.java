@@ -4,13 +4,14 @@ import android.graphics.Canvas;
 import android.graphics.Rect;
 
 public class Cannonball extends GameElement {
-    private float velocityX;
     private boolean onScreen;
+    private double timeToLive = 5.0;
+    private int bounces = 0;
+    private static final int MAX_BOUNCES = 3;
 
     public Cannonball(CannonView view, int color, int soundId, int x,
                       int y, int radius, float velocityX, float velocityY) {
-        super(view, color, soundId, x, y, 2 * radius, 2 * radius, velocityY);
-        this.velocityX = velocityX;
+        super(view, color, soundId, x, y, 2 * radius, 2 * radius, velocityY, velocityX);
         onScreen = true;
     }
 
@@ -19,7 +20,7 @@ public class Cannonball extends GameElement {
     }
 
     public boolean collidesWith(GameElement element) {
-        return (Rect.intersects(shape, element.shape) && velocityX > 0);
+        return Rect.intersects(shape, element.shape);
     }
 
     public boolean isOnScreen() {
@@ -30,15 +31,28 @@ public class Cannonball extends GameElement {
         velocityX *= -1;
     }
 
+    public void registerBounce() {
+        bounces++;
+    }
+
     @Override
     public void update(double interval) {
-        super.update(interval); // Movimento vertical
-        shape.offset((int) (velocityX * interval), 0); // Movimento horizontal
+        shape.offset((int) (velocityX * interval), (int) (velocityY * interval));
 
-        // Verifica se saiu da tela
-        if (shape.top < 0 || shape.left < 0 ||
-                shape.bottom > view.getScreenHeight() ||
-                shape.right > view.getScreenWidth()) {
+        // Verifica colisão com as paredes e conta os quiques
+        if ((shape.left < 0 && velocityX < 0) || (shape.right > view.getScreenWidth() && velocityX > 0)) {
+            velocityX *= -1; // Quica nas paredes laterais
+            registerBounce();
+        }
+        if ((shape.top < 0 && velocityY < 0) || (shape.bottom > view.getScreenHeight() && velocityY > 0)) {
+            velocityY *= -1; // Quica no teto e no chão
+            registerBounce();
+        }
+
+        timeToLive -= interval;
+
+        // Remove a bola de canhão se exceder os quiques ou o tempo de vida
+        if (bounces >= MAX_BOUNCES || timeToLive <= 0) {
             onScreen = false;
         }
     }
