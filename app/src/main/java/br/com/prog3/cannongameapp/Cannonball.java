@@ -1,10 +1,11 @@
 package br.com.prog3.cannongameapp;
 
 import android.graphics.Canvas;
+import android.graphics.Rect;
 
 public class Cannonball extends GameElement {
     private boolean onScreen;
-    private double timeToLive = 5.0; // A bola de canhão desaparecerá após 5 segundos
+    private double timeToLive = 5.0;
     private int bounces = 0;
     private static final int MAX_BOUNCES = 3;
 
@@ -14,8 +15,12 @@ public class Cannonball extends GameElement {
         onScreen = true;
     }
 
-    private int getRadius() {
+    public int getRadius() {
         return (shape.right - shape.left) / 2;
+    }
+
+    public boolean collidesWith(GameElement element) {
+        return Rect.intersects(shape, element.shape);
     }
 
     public boolean isOnScreen() {
@@ -34,20 +39,17 @@ public class Cannonball extends GameElement {
     public void update(double interval) {
         shape.offset((int) (velocityX * interval), (int) (velocityY * interval));
 
-        // Verifica colisão com as paredes e conta os quiques
         if ((shape.left < 0 && velocityX < 0) || (shape.right > view.getScreenWidth() && velocityX > 0)) {
-            velocityX *= -1; // Quica nas paredes laterais
+            velocityX *= -1;
             registerBounce();
         }
         if ((shape.top < 0 && velocityY < 0) || (shape.bottom > view.getScreenHeight() && velocityY > 0)) {
-            velocityY *= -1; // Quica no teto e no chão
+            velocityY *= -1;
             registerBounce();
         }
 
-        // Diminui o tempo de vida
         timeToLive -= interval;
 
-        // Remove a bola de canhão se exceder os quiques ou o tempo de vida
         if (bounces >= MAX_BOUNCES || timeToLive <= 0) {
             onScreen = false;
         }

@@ -1,5 +1,7 @@
 package br.com.prog3.cannongameapp;
 
+import java.util.Random;
+
 public class Target extends GameElement {
     private int hitReward;
 
@@ -14,7 +16,12 @@ public class Target extends GameElement {
     }
 
     public void increaseVelocity(float factor) {
-        velocityX *= factor;
-        velocityY *= factor;
+        this.velocityY *= factor;
+        this.velocityX *= factor;
+    }
+
+    @Override
+    public void update(double interval) {
+        super.update(interval);
     }
 }
