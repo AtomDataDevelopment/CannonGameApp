@@ -15,7 +15,7 @@ public class Cannonball extends GameElement {
         onScreen = true;
     }
 
-    private int getRadius() {
+    public int getRadius() {
         return (shape.right - shape.left) / 2;
     }
 
