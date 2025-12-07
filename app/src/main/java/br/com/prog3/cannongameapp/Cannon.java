@@ -4,7 +4,6 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Point;
-// Não precisa de import Context, pois CannonView já tem o método estático getThemeColor
 
 public class Cannon {
     private int baseRadius;
@@ -44,6 +43,7 @@ public class Cannon {
 
         cannonball = new Cannonball(view, cannonballColor, CannonView.CANNON_SOUND_ID, 0,
                 view.getScreenHeight() / 2 - radius, radius, velocityX, velocityY);
+        cannonball.playSound();
     }
 
     public void draw(Canvas canvas) {
