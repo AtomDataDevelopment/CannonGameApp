@@ -4,6 +4,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Point;
+// Não precisa de import Context, pois CannonView já tem o método estático getThemeColor
 
 public class Cannon {
     private int baseRadius;
@@ -19,7 +20,11 @@ public class Cannon {
         this.baseRadius = baseRadius;
         this.barrelLength = barrelLength;
         paint.setStrokeWidth(barrelWidth);
-        paint.setColor(Color.BLACK);
+
+        // MUDANÇA: Define a cor do Canhão usando o tema
+        int cannonColor = CannonView.getThemeColor(view.getContext(), R.color.cor_canhao_principal_id);
+        paint.setColor(cannonColor);
+
         align(Math.PI / 2); // Aponta para a direita
     }
 
@@ -34,9 +39,11 @@ public class Cannon {
         int velocityY = (int) (CannonView.CANNONBALL_SPEED_PERCENT * view.getScreenWidth() * -Math.cos(barrelAngle));
         int radius = (int) (view.getScreenHeight() * CannonView.CANNONBALL_RADIUS_PERCENT);
 
-        cannonball = new Cannonball(view, Color.BLACK, CannonView.CANNON_SOUND_ID, 0,
+        // MUDANÇA: Define a cor da Cannonball (Partículas) usando o tema
+        int cannonballColor = CannonView.getThemeColor(view.getContext(), R.color.cor_particula_id);
+
+        cannonball = new Cannonball(view, cannonballColor, CannonView.CANNON_SOUND_ID, 0,
                 view.getScreenHeight() / 2 - radius, radius, velocityX, velocityY);
-        // cannonball.playSound(); <-- Removido daqui
     }
 
     public void draw(Canvas canvas) {

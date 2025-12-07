@@ -38,4 +38,9 @@ public class GameElement {
     public void playSound() {
         view.playSound(soundId);
     }
+
+    // NOVO MÉTODO: Permite que a cor do elemento seja atualizada
+    public void setColor(int newColor) {
+        paint.setColor(newColor);
+    }
 }
