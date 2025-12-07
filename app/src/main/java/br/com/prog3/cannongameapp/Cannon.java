@@ -19,7 +19,10 @@ public class Cannon {
         this.baseRadius = baseRadius;
         this.barrelLength = barrelLength;
         paint.setStrokeWidth(barrelWidth);
-        paint.setColor(Color.BLACK);
+
+        int cannonColor = CannonView.getThemeColor(view.getContext(), R.color.cor_canhao_principal_id);
+        paint.setColor(cannonColor);
+
         align(Math.PI / 2);
     }
 
@@ -34,8 +37,11 @@ public class Cannon {
         int velocityY = (int) (power * CannonView.CANNONBALL_SPEED_PERCENT * view.getScreenWidth() * -Math.cos(barrelAngle));
         int radius = (int) (view.getScreenHeight() * CannonView.CANNONBALL_RADIUS_PERCENT);
 
-        cannonball = new Cannonball(view, Color.BLACK, CannonView.CANNON_SOUND_ID, 0,
+        int cannonballColor = CannonView.getThemeColor(view.getContext(), R.color.cor_particula_id);
+
+        cannonball = new Cannonball(view, cannonballColor, CannonView.CANNON_SOUND_ID, 0,
                 view.getScreenHeight() / 2 - radius, radius, velocityX, velocityY);
+        cannonball.playSound();
     }
 
     public void draw(Canvas canvas) {
