@@ -59,6 +59,7 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     private float power = 0.0f;
     private long fireTouchStartTime = 0;
     private boolean isCharging = false;
+    private int firingPointerId = -1;
 
     public static final int TARGET_SOUND_ID = 0;
     public static final int CANNON_SOUND_ID = 1;
@@ -156,28 +157,34 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     @Override
     public boolean onTouchEvent(MotionEvent e) {
         int pointerIndex = e.getActionIndex();
+        int pointerId = e.getPointerId(pointerIndex);
         int maskedAction = e.getActionMasked();
 
         switch (maskedAction) {
             case MotionEvent.ACTION_DOWN:
             case MotionEvent.ACTION_POINTER_DOWN:
                 if (e.getX(pointerIndex) >= screenWidth / 2) {
-                    isCharging = true;
-                    fireTouchStartTime = System.currentTimeMillis();
-                    power = 0.0f;
-                    fireCannon();
+                    if (firingPointerId == -1) {
+                        firingPointerId = pointerId;
+                        isCharging = true;
+                        fireTouchStartTime = System.currentTimeMillis();
+                        power = 0.0f;
+                    }
                 } else {
                     alignCannon(e.getX(pointerIndex), e.getY(pointerIndex));
                 }
                 break;
+
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_POINTER_UP:
-                if (isCharging) {
+                if (pointerId == firingPointerId) {
                     fireCannon();
-                } else { // Dedo na área esquerda (mira)
-                    alignCannon(e.getX(pointerIndex), e.getY(pointerIndex));
+                    firingPointerId = -1;
+                    isCharging = false;
+                    power = 0.0f;
                 }
                 break;
+                
             case MotionEvent.ACTION_MOVE:
                 for (int i = 0; i < e.getPointerCount(); i++) {
                     if (e.getX(i) < screenWidth / 2) {
