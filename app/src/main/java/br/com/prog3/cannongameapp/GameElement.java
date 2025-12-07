@@ -32,6 +32,25 @@ public class GameElement {
     }
 
     public void update(double interval) {
+        long elapsed = System.currentTimeMillis() - animationStartTime;
+
+        if (hit) {
+            if (elapsed < HIT_ANIMATION_TIME) {
+                float fraction = (float) elapsed / HIT_ANIMATION_TIME;
+                scale = 1.0f + fraction * 0.5f;
+                alpha = (int) ((1.0f - fraction) * 255);
+            } else {
+                alpha = 0;
+            }
+        } else if (elapsed < APPEAR_ANIMATION_TIME) {
+            float fraction = (float) elapsed / APPEAR_ANIMATION_TIME;
+            scale = fraction;
+            alpha = (int) (fraction * 255);
+        }else {
+            scale = 1.0f;
+            alpha = 255;
+        }
+
         shape.offset(0, (int) (velocityY * interval));
         shape.offset((int) (velocityX * interval), 0);
 
