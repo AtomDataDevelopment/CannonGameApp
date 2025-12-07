@@ -85,4 +85,8 @@ public class GameElement {
     }
 
     public boolean isHit() { return hit; }
+
+    public void setColor(int newColor) {
+        paint.setColor(newColor);
+    }
 }
