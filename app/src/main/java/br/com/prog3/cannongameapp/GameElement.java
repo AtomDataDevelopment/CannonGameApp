@@ -20,8 +20,8 @@ public class GameElement {
     private int alpha = 0;
 
 
-    public GameElement(CannonView view, int color, int soundId, int x,
-                       int y, int width, int length, float velocityY, float velocityX) {
+    public GameElement(CannonView view, int color, int soundId, int x, int y,
+                       int width, int length, float velocityY, float velocityX) {
         this.view = view;
         paint.setColor(color);
         shape = new Rect(x, y, x + width, y + length);

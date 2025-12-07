@@ -39,19 +39,17 @@ public class Cannonball extends GameElement {
     public void update(double interval) {
         shape.offset((int) (velocityX * interval), (int) (velocityY * interval));
 
-        // Verifica colisão com as paredes e conta os quiques
         if ((shape.left < 0 && velocityX < 0) || (shape.right > view.getScreenWidth() && velocityX > 0)) {
-            velocityX *= -1; // Quica nas paredes laterais
+            velocityX *= -1;
             registerBounce();
         }
         if ((shape.top < 0 && velocityY < 0) || (shape.bottom > view.getScreenHeight() && velocityY > 0)) {
-            velocityY *= -1; // Quica no teto e no chão
+            velocityY *= -1;
             registerBounce();
         }
 
         timeToLive -= interval;
 
-        // Remove a bola de canhão se exceder os quiques ou o tempo de vida
         if (bounces >= MAX_BOUNCES || timeToLive <= 0) {
             onScreen = false;
         }
