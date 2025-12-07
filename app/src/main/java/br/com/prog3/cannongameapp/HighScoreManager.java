@@ -9,7 +9,7 @@ import java.util.List;
 public class HighScoreManager {
     private static final String PREFS_NAME = "CannonGamePrefs";
     private static final String SCORES_KEY = "HighScores";
-    private static final int MAX_SCORES = 5; // Guardar apenas o Top 5
+    private static final int MAX_SCORES = 10; // Guardar apenas o Top 5
 
     private final SharedPreferences preferences;
 

@@ -346,20 +346,19 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     private void showGameOverDialog(final int messageId) {
-        // 1. SALVA A PONTUAÇÃO ATUAL NO RANKING (PRIMEIRA COISA A FAZER)
+        // 1. SALVA A PONTUAÇÃO ATUAL NO RANKING
         highScoreManager.addScore(score);
 
-        // 2. RECUPERA A LISTA ATUALIZADA DO RANKING
+        // 2. RECUPERA A LISTA ATUALIZADA
         List<Integer> highScores = highScoreManager.getHighScores();
 
-        // 3. MONTA O TEXTO PARA EXIBIR
-        StringBuilder rankingText = new StringBuilder("🏆 RANKING TOP 5 🏆\n");
+        // 3. MONTA O TEXTO DO RANKING
+        StringBuilder rankingText = new StringBuilder();
         if (highScores.isEmpty()) {
             rankingText.append("Ainda não há recordes!");
         } else {
             for (int i = 0; i < highScores.size(); i++) {
                 rankingText.append(i + 1).append(".  ").append(highScores.get(i)).append(" pts");
-                // Adiciona um marcador se a pontuação atual for a que está sendo listada
                 if (highScores.get(i) == score && score > 0) {
                     rankingText.append(" (NOVO!)");
                 }
@@ -375,20 +374,23 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
             dialog.setContentView(R.layout.dialog_game_over);
             dialog.setCancelable(false);
 
+            // Deixa o fundo transparente para as bordas arredondadas funcionarem
             if (dialog.getWindow() != null) {
                 dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
             }
 
+            // Vincula os componentes do layout
             TextView tvTitle = dialog.findViewById(R.id.tvTitle);
             TextView tvMessage = dialog.findViewById(R.id.tvMessage);
             TextView tvHighScores = dialog.findViewById(R.id.tvHighScores);
             Button btnRestart = dialog.findViewById(R.id.btnRestart);
 
+            // Define os textos
             tvTitle.setText(getResources().getString(messageId));
             tvMessage.setText(getResources().getString(R.string.results_format, shotsFired, totalElapsedTime, score));
-            
             tvHighScores.setText(rankingText.toString());
 
+            // Configura o botão de reiniciar
             btnRestart.setOnClickListener(v -> {
                 dialog.dismiss();
                 dialogIsDisplayed = false;
@@ -396,9 +398,22 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
                 newGame();
             });
 
+            // Exibe o dialog
             dialog.show();
+
+            // --- CORREÇÃO IMPORTANTE AQUI ---
+            // Redimensiona o dialog para ocupar 90% da largura e 75% da altura da tela.
+            // Isso garante que o ScrollView funcione e o botão não suma.
+            if (dialog.getWindow() != null) {
+                // Aumentamos para 95% da largura para caber as duas colunas lado a lado
+                int width = (int) (getResources().getDisplayMetrics().widthPixels * 0.95);
+                int height = (int) (getResources().getDisplayMetrics().heightPixels * 0.85);
+                dialog.getWindow().setLayout(width, height);
+            }
+            // --------------------------------
         });
     }
+
 
     public void drawGameElements(Canvas canvas) {
         canvas.drawRect(0, 0, canvas.getWidth(), canvas.getHeight(), backgroundPaint);
