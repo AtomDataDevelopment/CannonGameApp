@@ -30,7 +30,6 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     public static final double CANNONBALL_SPEED_PERCENT = 3.0 / 2;
     public static final double TARGET_WIDTH_PERCENT = 1.0 / 40;
     public static final double TARGET_LENGTH_PERCENT = 3.0 / 20;
-    public static final double TARGET_PIECES = 9;
     public static final double TARGET_MIN_SPEED_PERCENT = 3.0 / 8;
     public static final double TARGET_MAX_SPEED_PERCENT = 6.0 / 8;
     public static final double BLOCKER_WIDTH_PERCENT = 1.0 / 40;
@@ -54,6 +53,12 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     private double timeLeft;
     private int shotsFired;
     private double totalElapsedTime;
+    private int score;
+    private int level;
+
+    private float power = 0.0f;
+    private long fireTouchStartTime = 0;
+    private boolean isCharging = false;
 
     public static final int TARGET_SOUND_ID = 0;
     public static final int CANNON_SOUND_ID = 1;
@@ -109,7 +114,9 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
         if (!dialogIsDisplayed) {
-            newGame();
+            level = 1;
+            score = 0;
+            newGame(level);
             cannonThread = new CannonThread(holder);
             cannonThread.setRunning(true);
             cannonThread.start();
@@ -128,6 +135,7 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
                 cannonThread.join();
                 retry = false;
             } catch (InterruptedException e) {
+                // log exception
             }
         }
     }
@@ -135,16 +143,25 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     @Override
     public boolean onTouchEvent(MotionEvent e) {
         int pointerIndex = e.getActionIndex();
-        int pointerId = e.getPointerId(pointerIndex);
         int maskedAction = e.getActionMasked();
 
         switch (maskedAction) {
             case MotionEvent.ACTION_DOWN:
             case MotionEvent.ACTION_POINTER_DOWN:
                 if (e.getX(pointerIndex) >= screenWidth / 2) {
-                    fireCannon();
+                    isCharging = true;
+                    fireTouchStartTime = System.currentTimeMillis();
+                    power = 0.0f;
                 } else {
                     alignCannon(e.getX(pointerIndex), e.getY(pointerIndex));
+                }
+                break;
+            case MotionEvent.ACTION_UP:
+            case MotionEvent.ACTION_POINTER_UP:
+                if (isCharging) {
+                    fireCannon();
+                    isCharging = false;
+                    fireTouchStartTime = 0;
                 }
                 break;
             case MotionEvent.ACTION_MOVE:
@@ -164,17 +181,18 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         double angle = 0;
         if (centerMinusY != 0)
             angle = Math.atan2(touchPoint.x, centerMinusY);
-
         cannon.align(angle);
     }
 
     private void fireCannon() {
         if (canFire && (cannon.getCannonball() == null || !cannon.getCannonball().isOnScreen())) {
-            cannon.fireCannonball();
+            float finalPower = (power > 0.1f) ? power : 0.2f;
+            cannon.fireCannonball(finalPower);
             playSound(CANNON_SOUND_ID);
             ++shotsFired;
             canFire = false;
             lastFireTime = System.currentTimeMillis();
+            power = 0.0f;
         }
     }
 
@@ -216,7 +234,8 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         }
     }
 
-    public void newGame() {
+    public void newGame(int level) {
+        this.level = level;
         cannon = new Cannon(this,
                 (int) (CANNON_BASE_RADIUS_PERCENT * screenHeight),
                 (int) (CANNON_BARREL_LENGTH_PERCENT * screenWidth),
@@ -227,8 +246,9 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
 
         int targetWidth = (int) (TARGET_WIDTH_PERCENT * screenWidth);
         int targetLength = (int) (TARGET_LENGTH_PERCENT * screenHeight);
+        int numTargets = 5 + (level - 1) * 2;
 
-        for (int n = 0; n < TARGET_PIECES; n++) {
+        for (int n = 0; n < numTargets; n++) {
             int targetX = random.nextInt(screenWidth / 2 - targetWidth) + screenWidth / 2;
             int targetY = random.nextInt(screenHeight - targetLength);
 
@@ -257,6 +277,7 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         totalElapsedTime = 0.0;
         canFire = true;
         lastFireTime = 0;
+        power = 0.0f;
 
         if (gameOver) {
             gameOver = false;
@@ -269,6 +290,13 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
 
     private void updatePositions(double elapsedTimeMS) {
         double interval = elapsedTimeMS / 1000.0;
+
+        if (isCharging) {
+            long elapsedTime = System.currentTimeMillis() - fireTouchStartTime;
+            float chargeRatio = Math.min(1.0f, elapsedTime / 1000.0f);
+            power = chargeRatio;
+        }
+
         if (cannon.getCannonball() != null)
             cannon.getCannonball().update(interval);
         blocker.update(interval);
@@ -279,21 +307,18 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         int ceilingY = (int) (screenHeight * 0.05);
 
         for (Target target : targets) {
-            // Mid-screen boundary for targets
+            if (target.collidesWith(blocker)) {
+                target.velocityX *= -1;
+            }
+
             if (target.shape.left < midScreenX) {
                 target.shape.offsetTo(midScreenX, target.shape.top);
                 target.velocityX *= -1;
             }
 
-            // Ceiling boundary for targets
             if (target.shape.top < ceilingY) {
                 target.shape.offsetTo(target.shape.left, ceilingY);
                 target.velocityY *= -1;
-            }
-
-            // Target-Blocker collision
-            if (target.collidesWith(blocker)) {
-                target.velocityX *= -1;
             }
         }
 
@@ -343,9 +368,8 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         }
 
         if (targets.isEmpty()) {
-            cannonThread.setRunning(false);
-            showGameOverDialog(R.string.win);
-            gameOver = true;
+            level++;
+            newGame(level);
         }
 
         if (!canFire && (System.currentTimeMillis() - lastFireTime) >= RELOAD_DELAY) {
@@ -357,24 +381,21 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         activity.runOnUiThread(new Runnable() {
             public void run() {
                 showSystemBars();
-
                 AlertDialog.Builder builder = new AlertDialog.Builder(activity);
-
                 builder.setTitle(getResources().getString(messageId));
-
                 builder.setMessage(getResources().getString(
                         R.string.results_format, shotsFired, totalElapsedTime));
-
                 builder.setPositiveButton(R.string.reset_game,
                         new DialogInterface.OnClickListener() {
                             @Override
                             public void onClick(DialogInterface dialog, int which) {
                                 dialogIsDisplayed = false;
-                                newGame();
+                                level = 1;
+                                score = 0;
+                                newGame(level);
                             }
                         }
                 );
-
                 builder.setCancelable(false);
                 builder.show();
             }
@@ -385,6 +406,13 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         canvas.drawRect(0, 0, canvas.getWidth(), canvas.getHeight(), backgroundPaint);
         canvas.drawText(getResources().getString(R.string.time_remaining_format, timeLeft),
                 30, 50, textPaint);
+        canvas.drawText("Score: " + score, 30, 100, textPaint);
+        canvas.drawText("Level: " + level, 30, 150, textPaint);
+
+
+        String powerString = (isCharging) ? String.format("Power: %.0f%%", power * 100) : "Power: 0%";
+        canvas.drawText(powerString, screenWidth - 300, 100, textPaint);
+
         cannon.draw(canvas);
         if (cannon.getCannonball() != null && cannon.getCannonball().isOnScreen())
             cannon.getCannonball().draw(canvas);
@@ -399,11 +427,12 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
                 if (cannon.getCannonball().collidesWith(targets.get(n))) {
                     targets.get(n).playSound();
                     timeLeft += targets.get(n).getHitReward();
+                    score += targets.get(n).getHitReward();
                     cannon.removeCannonball();
                     targets.remove(n);
                     
                     for (Target remainingTarget : targets) {
-                        remainingTarget.increaseVelocity(1.3f);
+                        remainingTarget.increaseVelocity(1.2f);
                     }
 
                     --n;
