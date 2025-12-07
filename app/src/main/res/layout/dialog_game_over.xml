@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"    android:layout_width="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
     android:layout_height="match_parent"
     app:cardBackgroundColor="#FAFAFA"
     app:cardCornerRadius="16dp"
@@ -11,7 +12,7 @@
         android:layout_height="match_parent"
         android:padding="16dp">
 
-        <!-- BOTÃO JOGAR NOVAMENTE (Fixo no Rodapé) -->
+        <!-- BOTÃO JOGAR NOVAMENTE -->
         <Button
             android:id="@+id/btnRestart"
             android:layout_width="0dp"
@@ -27,7 +28,7 @@
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent" />
 
-        <!-- CONTÊINER PRINCIPAL (Divide a tela em 2 colunas) -->
+        <!-- CONTÊINER PRINCIPAL -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
@@ -63,15 +64,16 @@
                     android:layout_height="wrap_content"
                     android:background="#E3F2FD"
                     android:padding="16dp"
-                    android:text="Score: 1000\nTempo: 20s"
+                    android:text="Score: 1000"
                     android:textAlignment="center"
                     android:textColor="#1565C0"
                     android:textSize="16sp"
                     android:textStyle="bold" />
+                
+                <!-- REMOVIDO O CAMPO DE NOME DAQUI -->
 
             </LinearLayout>
 
-            <!-- LINHA DIVISÓRIA VERTICAL -->
             <View
                 android:layout_width="1dp"
                 android:layout_height="match_parent"
@@ -79,7 +81,7 @@
                 android:layout_marginBottom="10dp"
                 android:background="#CCCCCC" />
 
-            <!-- COLUNA DA DIREITA: RANKING (COM SCROLL) -->
+            <!-- COLUNA DA DIREITA: RANKING -->
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
@@ -97,7 +99,6 @@
                     android:textSize="16sp"
                     android:textStyle="bold" />
 
-                <!-- ScrollView apenas para o ranking -->
                 <ScrollView
                     android:layout_width="match_parent"
                     android:layout_height="match_parent"
@@ -110,7 +111,7 @@
                         android:layout_height="wrap_content"
                         android:lineSpacingExtra="4dp"
                         android:padding="12dp"
-                        android:text="1. 5000 pts\n2. 4000 pts..."
+                        android:text="Carregando..."
                         android:textAlignment="center"
                         android:textColor="#333"
                         android:textSize="14sp"
