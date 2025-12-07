@@ -444,7 +444,7 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
 
 
         String powerString = (isCharging) ? String.format("Power: %.0f%%", power * 100) : "Power: 0%";
-        canvas.drawText(powerString, 30, 100, textPaint);
+        canvas.drawText(powerString, 30, 200, textPaint);
 
         cannon.draw(canvas);
         if (cannon.getCannonball() != null && cannon.getCannonball().isOnScreen())
