@@ -54,7 +54,7 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     // ===========================
 
     public static final int SOUND_FIRE = 1;   // tiro.wav
-    public static final int SOUND_HIT = 2;    // hahaaha.wav
+    public static final int SOUND_HIT = 2;    // tei.wav
     public static final int SOUND_BLOCK = 3;  // faustao_errou.wav
 
     private SoundPool soundPool;
@@ -129,7 +129,7 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         soundMap = new SparseIntArray();
 
         soundMap.put(SOUND_FIRE, soundPool.load(context, R.raw.tiro, 1));
-        soundMap.put(SOUND_HIT, soundPool.load(context, R.raw.hahaaha, 1));
+        soundMap.put(SOUND_HIT, soundPool.load(context, R.raw.tei, 1));
         soundMap.put(SOUND_BLOCK, soundPool.load(context, R.raw.faustao_errou, 1));
 
         bgMusic = MediaPlayer.create(context, R.raw.background_music);
