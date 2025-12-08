@@ -1,11 +1,13 @@
 package br.com.prog3.cannongameapp;
 
 public class Blocker extends GameElement {
-    private int missPenalty; // Penalidade de tempo
 
-    public Blocker(CannonView view, int color, int missPenalty, int x,
-                   int y, int width, int length, float velocityY) {
-        super(view, color, CannonView.BLOCKER_SOUND_ID, x, y, width, length, velocityY);
+    private int missPenalty;
+
+    public Blocker(CannonView view, int color, int missPenalty,
+                   int x, int y, int width, int height, float velocityY) {
+
+        super(view, color, CannonView.SOUND_BLOCK, x, y, width, height, velocityY);
         this.missPenalty = missPenalty;
     }
 

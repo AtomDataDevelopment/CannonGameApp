@@ -1,37 +1,39 @@
 package br.com.prog3.cannongameapp;
 
-import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.app.AlertDialog;
-import android.app.Dialog;
-import android.app.DialogFragment;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
-import android.graphics.Point;
 import android.media.AudioAttributes;
+import android.media.MediaPlayer;
 import android.media.SoundPool;
 import android.os.Build;
-import android.os.Bundle;
 import android.util.AttributeSet;
 import android.util.SparseIntArray;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
+
 import java.util.ArrayList;
 import java.util.Random;
 
 public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
+
+    // ===========================
+    //   CONSTANTES DO JOGO
+    // ===========================
+
     public static final int MISS_PENALTY = 2;
     public static final int HIT_REWARD = 3;
+
     public static final double CANNON_BASE_RADIUS_PERCENT = 3.0 / 40;
     public static final double CANNON_BARREL_WIDTH_PERCENT = 3.0 / 40;
     public static final double CANNON_BARREL_LENGTH_PERCENT = 1.0 / 10;
     public static final double CANNONBALL_RADIUS_PERCENT = 3.0 / 80;
     public static final double CANNONBALL_SPEED_PERCENT = 3.0 / 2;
+
     public static final double TARGET_WIDTH_PERCENT = 1.0 / 40;
     public static final double TARGET_LENGTH_PERCENT = 3.0 / 20;
     public static final double TARGET_FIRST_X_PERCENT = 3.0 / 5;
@@ -39,84 +41,147 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     public static final double TARGET_PIECES = 9;
     public static final double TARGET_MIN_SPEED_PERCENT = 3.0 / 4;
     public static final double TARGET_MAX_SPEED_PERCENT = 6.0 / 4;
+
     public static final double BLOCKER_WIDTH_PERCENT = 1.0 / 40;
     public static final double BLOCKER_LENGTH_PERCENT = 1.0 / 4;
     public static final double BLOCKER_X_PERCENT = 1.0 / 2;
     public static final double BLOCKER_SPEED_PERCENT = 1.0;
+
     public static final double TEXT_SIZE_PERCENT = 1.0 / 18;
 
-    private CannonThread cannonThread;
-    private Activity activity;
-    private boolean dialogIsDisplayed = false;
+    // ===========================
+    //       SONS NOVOS
+    // ===========================
+
+    public static final int SOUND_FIRE = 1;   // tiro.wav
+    public static final int SOUND_HIT = 2;    // hahaaha.wav
+    public static final int SOUND_BLOCK = 3;  // faustao_errou.wav
+
+    private SoundPool soundPool;
+    private SparseIntArray soundMap;
+    private MediaPlayer bgMusic;
+
+    // ===========================
+    //    OBJETOS DO JOGO
+    // ===========================
 
     private Cannon cannon;
     private Blocker blocker;
     private ArrayList<Target> targets;
 
+    private CannonThread cannonThread;
+    private Activity activity;
+
+    private boolean gameStarted = false;
+    private boolean gameOver = false;
+
     private int screenWidth;
     private int screenHeight;
 
-    private boolean gameOver;
     private double timeLeft;
     private int shotsFired;
     private double totalElapsedTime;
 
-    public static final int TARGET_SOUND_ID = 0;
-    public static final int CANNON_SOUND_ID = 1;
-    public static final int BLOCKER_SOUND_ID = 2;
-    private SoundPool soundPool;
-    private SparseIntArray soundMap;
+    private long lastFireTime = 0;
+    private static final int RELOAD_DELAY = 500;
+    private boolean canFire = true;
+
+    // ===========================
+    //      DESENHO
+    // ===========================
 
     private Paint textPaint;
     private Paint backgroundPaint;
+    private Paint overlayPaint;
+    private Paint playButtonPaint;
+    private Paint playTextPaint;
 
-    // Variáveis para controle de recarga
-    private long lastFireTime = 0;
-    private static final int RELOAD_DELAY = 500; // 500 milissegundos
-    private boolean canFire = true;
+    // ===========================
+    //     CONSTRUTOR
+    // ===========================
 
     public CannonView(Context context, AttributeSet attrs) {
         super(context, attrs);
+
         activity = (Activity) context;
         getHolder().addCallback(this);
 
-        AudioAttributes.Builder attrBuilder = new AudioAttributes.Builder();
-        attrBuilder.setUsage(AudioAttributes.USAGE_GAME);
+        setupSound(context);
+        setupPaints();
+    }
 
-        SoundPool.Builder builder = new SoundPool.Builder();
-        builder.setMaxStreams(1);
-        builder.setAudioAttributes(attrBuilder.build());
-        soundPool = builder.build();
+    // ===========================
+    //   CONFIGURAÇÃO DE SOM
+    // ===========================
 
-        soundMap = new SparseIntArray(3);
-        soundMap.put(TARGET_SOUND_ID, soundPool.load(context, R.raw.target_hit, 1));
-        soundMap.put(CANNON_SOUND_ID, soundPool.load(context, R.raw.cannon_fire, 1));
-        soundMap.put(BLOCKER_SOUND_ID, soundPool.load(context, R.raw.blocker_hit, 1));
+    private void setupSound(Context context) {
+
+        AudioAttributes attr = new AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_GAME)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build();
+
+        soundPool = new SoundPool.Builder()
+                .setMaxStreams(5)
+                .setAudioAttributes(attr)
+                .build();
+
+        soundMap = new SparseIntArray();
+
+        soundMap.put(SOUND_FIRE, soundPool.load(context, R.raw.tiro, 1));
+        soundMap.put(SOUND_HIT, soundPool.load(context, R.raw.hahaaha, 1));
+        soundMap.put(SOUND_BLOCK, soundPool.load(context, R.raw.faustao_errou, 1));
+
+        bgMusic = MediaPlayer.create(context, R.raw.background_music);
+        bgMusic.setLooping(true);
+        bgMusic.setVolume(0.10f, 0.10f);
+    }
+
+    // ===========================
+    //   CONFIGURAÇÃO GRÁFICA
+    // ===========================
+
+    private void setupPaints() {
 
         textPaint = new Paint();
+        textPaint.setColor(Color.BLACK);
+        textPaint.setAntiAlias(true);
+
         backgroundPaint = new Paint();
         backgroundPaint.setColor(Color.WHITE);
+
+        overlayPaint = new Paint();
+        overlayPaint.setColor(Color.argb(180, 0, 0, 0));
+
+        playButtonPaint = new Paint();
+        playButtonPaint.setColor(Color.GREEN);
+
+        playTextPaint = new Paint();
+        playTextPaint.setColor(Color.WHITE);
+        playTextPaint.setTextSize(80);
+        playTextPaint.setTextAlign(Paint.Align.CENTER);
     }
 
-    public void playSound(int soundId) {
-        if(soundPool != null)
-            soundPool.play(soundMap.get(soundId), 1, 1, 1, 0, 1f);
-    }
+    // ===========================
+    //      GETTERS NOVOS
+    // ===========================
 
     public int getScreenWidth() { return screenWidth; }
     public int getScreenHeight() { return screenHeight; }
 
-    public void releaseResources() {
-        if(soundPool != null) {
-            soundPool.release();
-            soundPool = null;
+    // ===========================
+    //   CONTROLE DO JOGO
+    // ===========================
+
+    public void playSound(int id) {
+        if (soundPool != null) {
+            soundPool.play(soundMap.get(id), 1, 1, 1, 0, 1f);
         }
     }
 
     @Override
     public void surfaceCreated(SurfaceHolder holder) {
-        if (!dialogIsDisplayed) {
-            newGame();
+        if (cannonThread == null || !cannonThread.isAlive()) {
             cannonThread = new CannonThread(holder);
             cannonThread.setRunning(true);
             cannonThread.start();
@@ -124,114 +189,221 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     @Override
-    public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) { }
+    public void surfaceChanged(SurfaceHolder holder, int format, int width, int height) {
+        screenWidth = width;
+        screenHeight = height;
+
+        textPaint.setTextSize((int) (TEXT_SIZE_PERCENT * screenHeight));
+    }
 
     @Override
     public void surfaceDestroyed(SurfaceHolder holder) {
         boolean retry = true;
-        cannonThread.setRunning(false);
+        if (cannonThread != null) {
+            cannonThread.setRunning(false);
+        }
+
         while (retry) {
             try {
-                cannonThread.join();
+                if (cannonThread != null) {
+                    cannonThread.join();
+                }
                 retry = false;
             } catch (InterruptedException e) {
-                // log exception
+                // Tenta de novo para garantir que a thread pare
             }
+        }
+        cannonThread = null;
+    }
+
+    public void releaseResources() {
+        if (soundPool != null) {
+            soundPool.release();
+            soundPool = null;
+        }
+        if (bgMusic != null) {
+            bgMusic.release();
+            bgMusic = null;
         }
     }
 
+    public void stopGame() {
+        if (cannonThread != null) {
+            cannonThread.setRunning(false);
+        }
+        if (bgMusic != null && bgMusic.isPlaying()) {
+            bgMusic.pause();
+        }
+    }
+
+    public void resume() {
+        if (!gameOver && bgMusic != null && !bgMusic.isPlaying()) {
+            bgMusic.start();
+        }
+        // Se o jogo estava pausado, cria e inicia uma nova thread
+        if (cannonThread == null || !cannonThread.isAlive()) {
+            cannonThread = new CannonThread(getHolder());
+            cannonThread.setRunning(true);
+            cannonThread.start();
+        }
+    }
+
+    // ===========================
+    //    TOQUE NA TELA
+    // ===========================
+
     @Override
     public boolean onTouchEvent(MotionEvent e) {
-        int pointerIndex = e.getActionIndex();
-        int pointerId = e.getPointerId(pointerIndex);
-        int maskedAction = e.getActionMasked();
 
-        switch (maskedAction) {
-            case MotionEvent.ACTION_DOWN:
-            case MotionEvent.ACTION_POINTER_DOWN:
-                // Um novo dedo tocou a tela
-                if (e.getX(pointerIndex) >= screenWidth / 2) { // Dedo na área direita (disparo)
-                    fireCannon();
-                } else { // Dedo na área esquerda (mira)
-                    alignCannon(e.getX(pointerIndex), e.getY(pointerIndex));
-                }
-                break;
-            case MotionEvent.ACTION_MOVE:
-                // Um ou mais dedos estão se movendo
-                for (int i = 0; i < e.getPointerCount(); i++) {
-                    if (e.getX(i) < screenWidth / 2) { // Dedo na área esquerda (mira)
-                        alignCannon(e.getX(i), e.getY(i));
-                    }
-                }
-                break;
-            // Outras ações como UP, POINTER_UP não precisam de tratamento específico para mira/disparo
+        if (!gameStarted) {
+            return handlePlayButton(e);
+        }
+
+        if (gameOver) {
+            newGame();
+            if (bgMusic != null) bgMusic.start();
+            gameOver = false;
+            return true;
+        }
+
+        handleGameTouch(e);
+        return true;
+    }
+
+    private boolean handlePlayButton(MotionEvent e) {
+
+        float x = e.getX();
+        float y = e.getY();
+
+        float left = screenWidth / 2f - 200;
+        float top = screenHeight / 2f - 100;
+        float right = screenWidth / 2f + 200;
+        float bottom = screenHeight / 2f + 100;
+
+        if (x > left && x < right && y > top && y < bottom) {
+            gameStarted = true;
+            newGame();
+            if (bgMusic != null) bgMusic.start();
         }
         return true;
     }
 
-    private void alignCannon(float touchX, float touchY) {
-        Point touchPoint = new Point((int) touchX, (int) touchY);
-        double centerMinusY = (screenHeight / 2 - touchPoint.y);
-        double angle = 0;
-        if (centerMinusY != 0)
-            angle = Math.atan2(touchPoint.x, centerMinusY);
+    private void handleGameTouch(MotionEvent e) {
+
+        int action = e.getActionMasked();
+        int index = e.getActionIndex();
+
+        if (action == MotionEvent.ACTION_DOWN || action == MotionEvent.ACTION_POINTER_DOWN) {
+
+            if (e.getX(index) >= screenWidth / 2)
+                fireCannon();
+            else
+                alignCannon(e.getX(index), e.getY(index));
+        }
+
+        if (action == MotionEvent.ACTION_MOVE) {
+
+            for (int i = 0; i < e.getPointerCount(); i++) {
+
+                if (e.getX(i) < screenWidth / 2)
+                    alignCannon(e.getX(i), e.getY(i));
+            }
+        }
+    }
+
+    // ===========================
+    //    CONTROLE DO CANHÃO
+    // ===========================
+
+    private void alignCannon(float x, float y) {
+
+        double diffY = (screenHeight / 2 - y);
+        double angle = (diffY != 0) ? Math.atan2(x, diffY) : 0;
 
         cannon.align(angle);
     }
 
     private void fireCannon() {
-        if (canFire && (cannon.getCannonball() == null || !cannon.getCannonball().isOnScreen())) {
+
+        if (canFire && (cannon.getCannonball() == null ||
+                !cannon.getCannonball().isOnScreen())) {
+
             cannon.fireCannonball();
-            playSound(CANNON_SOUND_ID);
-            ++shotsFired;
+
+            playSound(SOUND_FIRE);
+
+            shotsFired++;
             canFire = false;
             lastFireTime = System.currentTimeMillis();
         }
     }
 
+    // ===========================
+    //   THREAD PRINCIPAL
+    // ===========================
+
     private class CannonThread extends Thread {
-        private SurfaceHolder surfaceHolder;
-        private boolean threadIsRunning = true;
 
-        public CannonThread(SurfaceHolder holder) {
-            surfaceHolder = holder;
-            setName("CannonThread");
+        private final SurfaceHolder holder;
+        private boolean running = true;
+
+        public CannonThread(SurfaceHolder h) {
+            holder = h;
+setName("CannonThread");
         }
 
-        public void setRunning(boolean running) {
-            threadIsRunning = running;
-        }
+        public void setRunning(boolean r) { running = r; }
 
         @Override
         public void run() {
-            Canvas canvas = null;
-            long previousFrameTime = System.currentTimeMillis();
 
-            while (threadIsRunning) {
+            long previousTime = System.currentTimeMillis();
+
+            while (running) {
+
+                Canvas canvas = null;
+
                 try {
-                    canvas = surfaceHolder.lockCanvas(null);
-                    synchronized (surfaceHolder) {
-                        long currentTime = System.currentTimeMillis();
-                        double elapsedTimeMS = currentTime - previousFrameTime;
-                        totalElapsedTime += elapsedTimeMS / 1000.0;
-                        updatePositions(elapsedTimeMS);
-                        testForCollisions();
+                    canvas = holder.lockCanvas();
+
+                    if (canvas != null) {
+
+                        long now = System.currentTimeMillis();
+                        double elapsed = now - previousTime;
+                        totalElapsedTime += elapsed / 1000.0;
+
+                        if (gameStarted && !gameOver) {
+                            updatePositions(elapsed);
+                            testForCollisions();
+                        }
+
                         drawGameElements(canvas);
-                        previousFrameTime = currentTime;
+                        previousTime = now;
                     }
+
                 } finally {
+
                     if (canvas != null)
-                        surfaceHolder.unlockCanvasAndPost(canvas);
+                        holder.unlockCanvasAndPost(canvas);
                 }
             }
         }
     }
 
+    // ===========================
+    //   LÓGICA DO JOGO
+    // ===========================
+
     public void newGame() {
-        cannon = new Cannon(this,
+
+        gameOver = false;
+
+        cannon = new Cannon(
+                this,
                 (int) (CANNON_BASE_RADIUS_PERCENT * screenHeight),
                 (int) (CANNON_BARREL_LENGTH_PERCENT * screenWidth),
-                (int) (CANNON_BARREL_WIDTH_PERCENT * screenHeight));
+                (int) (CANNON_BARREL_WIDTH_PERCENT * screenHeight)
+        );
 
         Random random = new Random();
         targets = new ArrayList<>();
@@ -239,166 +411,166 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         int targetX = (int) (TARGET_FIRST_X_PERCENT * screenWidth);
         int targetY = (int) ((0.5 - TARGET_LENGTH_PERCENT / 2) * screenHeight);
 
-        for (int n = 0; n < TARGET_PIECES; n++) {
-            double velocity = screenHeight * (random.nextDouble() * (TARGET_MAX_SPEED_PERCENT - TARGET_MIN_SPEED_PERCENT) + TARGET_MIN_SPEED_PERCENT);
-            int color = (n % 2 == 0) ? getResources().getColor(R.color.dark, getContext().getTheme())
-                    : getResources().getColor(R.color.light, getContext().getTheme());
-            velocity *= -1;
+        for (int i = 0; i < TARGET_PIECES; i++) {
 
-            targets.add(new Target(this, color, HIT_REWARD, targetX, targetY,
+            double speed = screenHeight *
+                    (random.nextDouble() *
+                            (TARGET_MAX_SPEED_PERCENT - TARGET_MIN_SPEED_PERCENT)
+                            + TARGET_MIN_SPEED_PERCENT);
+
+            speed *= -1;
+
+            int color = (i % 2 == 0)
+                    ? Color.rgb(50, 50, 50)
+                    : Color.rgb(200, 200, 200);
+
+            targets.add(new Target(
+                    this,
+                    color,
+                    HIT_REWARD,
+                    targetX,
+                    targetY,
                     (int) (TARGET_WIDTH_PERCENT * screenWidth),
                     (int) (TARGET_LENGTH_PERCENT * screenHeight),
-                    (int) velocity));
+                    (int) speed
+            ));
 
             targetX += (TARGET_WIDTH_PERCENT + TARGET_SPACING_PERCENT) * screenWidth;
         }
 
-        blocker = new Blocker(this, Color.BLACK, MISS_PENALTY,
+        blocker = new Blocker(
+                this,
+                Color.BLACK,
+                MISS_PENALTY,
                 (int) (BLOCKER_X_PERCENT * screenWidth),
                 (int) ((0.5 - BLOCKER_LENGTH_PERCENT / 2) * screenHeight),
                 (int) (BLOCKER_WIDTH_PERCENT * screenWidth),
                 (int) (BLOCKER_LENGTH_PERCENT * screenHeight),
-                (float) (BLOCKER_SPEED_PERCENT * screenHeight));
+                (float) (BLOCKER_SPEED_PERCENT * screenHeight)
+        );
 
         timeLeft = 10;
         shotsFired = 0;
         totalElapsedTime = 0.0;
-        canFire = true; // Reinicia a flag de disparo
-        lastFireTime = 0; // Reinicia o tempo do último disparo
-
-        if (gameOver) {
-            gameOver = false;
-            cannonThread = new CannonThread(getHolder());
-            cannonThread.start();
-        }
-
-        hideSystemBars();
+        canFire = true;
     }
 
-    private void updatePositions(double elapsedTimeMS) {
-        double interval = elapsedTimeMS / 1000.0;
+    private void updatePositions(double elapsedMS) {
+
+        double interval = elapsedMS / 1000.0;
+
         if (cannon.getCannonball() != null)
             cannon.getCannonball().update(interval);
+
         blocker.update(interval);
-        for (Target target : targets)
-            target.update(interval);
+
+        for (Target t : targets)
+            t.update(interval);
 
         timeLeft -= interval;
+
         if (timeLeft <= 0) {
-            timeLeft = 0.0;
+            timeLeft = 0;
             gameOver = true;
-            cannonThread.setRunning(false);
-            showGameOverDialog(R.string.lose);
+            if(bgMusic != null && bgMusic.isPlaying())
+                bgMusic.pause();
         }
 
         if (targets.isEmpty()) {
-            cannonThread.setRunning(false);
-            showGameOverDialog(R.string.win);
             gameOver = true;
+            if(bgMusic != null && bgMusic.isPlaying())
+                bgMusic.pause();
         }
 
-        // Verifica o tempo de recarga
-        if (!canFire && (System.currentTimeMillis() - lastFireTime) >= RELOAD_DELAY) {
+        if (!canFire &&
+                (System.currentTimeMillis() - lastFireTime) >= RELOAD_DELAY) {
             canFire = true;
         }
     }
 
-    private void showGameOverDialog(final int messageId) {
-        // Executa na UI Thread para poder mexer na tela
-        activity.runOnUiThread(new Runnable() {
-            public void run() {
-                showSystemBars(); // Mostra a barra para o usuário poder sair se quiser
-
-                // Cria o alerta direto, sem envolver Fragmentos complicados
-                AlertDialog.Builder builder = new AlertDialog.Builder(activity);
-
-                builder.setTitle(getResources().getString(messageId)); // Título (Venceu/Perdeu)
-
-                // Corpo da mensagem (Disparos e Tempo)
-                builder.setMessage(getResources().getString(
-                        R.string.results_format, shotsFired, totalElapsedTime));
-
-                builder.setPositiveButton(R.string.reset_game,
-                        new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                dialogIsDisplayed = false;
-                                newGame(); // Reinicia o jogo
-                            }
-                        }
-                );
-
-                builder.setCancelable(false); // Impede fechar clicando fora
-                builder.show(); // Mostra a janela imediatamente
-            }
-        });
-    }
-
-    public void drawGameElements(Canvas canvas) {
-        canvas.drawRect(0, 0, canvas.getWidth(), canvas.getHeight(), backgroundPaint);
-        canvas.drawText(getResources().getString(R.string.time_remaining_format, timeLeft),
-                30, 50, textPaint);
-        cannon.draw(canvas);
-        if (cannon.getCannonball() != null && cannon.getCannonball().isOnScreen())
-            cannon.getCannonball().draw(canvas);
-        blocker.draw(canvas);
-        for (Target target : targets)
-            target.draw(canvas);
-    }
-
     public void testForCollisions() {
-        if (cannon.getCannonball() != null && cannon.getCannonball().isOnScreen()) {
-            for (int n = 0; n < targets.size(); n++) {
-                if (cannon.getCannonball().collidesWith(targets.get(n))) {
-                    targets.get(n).playSound();
-                    timeLeft += targets.get(n).getHitReward();
+
+        if (cannon.getCannonball() != null &&
+                cannon.getCannonball().isOnScreen()) {
+
+            for (int i = 0; i < targets.size(); i++) {
+
+                if (cannon.getCannonball().collidesWith(targets.get(i))) {
+                    playSound(SOUND_HIT);
+
+                    timeLeft += targets.get(i).getHitReward();
                     cannon.removeCannonball();
-                    targets.remove(n);
-                    --n;
+                    targets.remove(i);
+
                     break;
                 }
             }
-        } else { return; }
+        }
 
-        if (cannon.getCannonball() != null && cannon.getCannonball().collidesWith(blocker)) {
-            blocker.playSound();
+        if (cannon.getCannonball() != null &&
+                cannon.getCannonball().collidesWith(blocker)) {
+
+            playSound(SOUND_BLOCK);
+
             cannon.getCannonball().reverseVelocityX();
             timeLeft -= blocker.getMissPenalty();
         }
     }
 
-    public void stopGame() {
-        if (cannonThread != null)
-            cannonThread.setRunning(false);
-    }
+    public void drawGameElements(Canvas canvas) {
 
-    @Override
-    protected void onSizeChanged(int w, int h, int oldw, int oldh) {
-        super.onSizeChanged(w, h, oldw, oldh);
-        screenWidth = w;
-        screenHeight = h;
-        textPaint.setTextSize((int) (TEXT_SIZE_PERCENT * screenHeight));
-        textPaint.setAntiAlias(true);
-    }
+        canvas.drawRect(0, 0, canvas.getWidth(), canvas.getHeight(), backgroundPaint);
 
-    private void hideSystemBars() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
-                            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
-                            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
-                            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
-                            View.SYSTEM_UI_FLAG_FULLSCREEN |
-                            View.SYSTEM_UI_FLAG_IMMERSIVE);
+        if (gameStarted) {
+            canvas.drawText(
+                    "Tempo: " + String.format("%.2f", timeLeft),
+                    30, 60, textPaint
+            );
         }
-    }
 
-    private void showSystemBars() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
-                            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
-                            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
+        if (gameStarted && !gameOver) {
+
+            cannon.draw(canvas);
+
+            if (cannon.getCannonball() != null &&
+                    cannon.getCannonball().isOnScreen())
+                cannon.getCannonball().draw(canvas);
+
+            blocker.draw(canvas);
+
+            for (Target t : targets)
+                t.draw(canvas);
+
+        } else if (!gameStarted) {
+
+            canvas.drawRect(
+                    screenWidth / 2f - 200,
+                    screenHeight / 2f - 100,
+                    screenWidth / 2f + 200,
+                    screenHeight / 2f + 100,
+                    playButtonPaint
+            );
+
+            canvas.drawText(
+                    "PLAY",
+                    screenWidth / 2f,
+                    screenHeight / 2f + 25,
+                    playTextPaint
+            );
+
+        } else if (gameOver) {
+
+            canvas.drawRect(0, 0, screenWidth, screenHeight, overlayPaint);
+
+            playTextPaint.setTextSize(80);
+            canvas.drawText("Fim de Jogo!", screenWidth / 2f, screenHeight / 2f - 150, playTextPaint);
+
+            canvas.drawText(
+                    "Toque para Reiniciar",
+                    screenWidth / 2f,
+                    screenHeight / 2f,
+                    playTextPaint
+            );
         }
     }
 }

@@ -5,29 +5,31 @@ import android.graphics.Paint;
 import android.graphics.Rect;
 
 public class GameElement {
-    protected CannonView view; // A view que contém este elemento
-    protected Paint paint = new Paint(); // Objeto para desenhar
-    protected Rect shape; // Limites retangulares do elemento
-    private float velocityY; // Velocidade vertical
-    private int soundId; // ID do som associado
 
-    public GameElement(CannonView view, int color, int soundId, int x,
-                       int y, int width, int length, float velocityY) {
+    protected CannonView view;
+    protected Paint paint = new Paint();
+    protected Rect shape;
+
+    protected float velocityY;
+    protected int soundId;
+
+    public GameElement(CannonView view, int color, int soundId,
+                       int x, int y, int width, int height, float velocityY) {
+
         this.view = view;
-        paint.setColor(color);
-        shape = new Rect(x, y, x + width, y + length); // Define limites
         this.soundId = soundId;
         this.velocityY = velocityY;
+
+        paint.setColor(color);
+        shape = new Rect(x, y, x + width, y + height);
     }
 
     public void update(double interval) {
-        // Atualiza posição vertical
         shape.offset(0, (int) (velocityY * interval));
 
-        // Colisão com paredes (topo e fundo)
-        if (shape.top < 0 && velocityY < 0 ||
-                shape.bottom > view.getScreenHeight() && velocityY > 0) {
-            velocityY *= -1; // Inverte velocidade
+        if ((shape.top < 0 && velocityY < 0) ||
+                (shape.bottom > view.getScreenHeight() && velocityY > 0)) {
+            velocityY *= -1;
         }
     }
 

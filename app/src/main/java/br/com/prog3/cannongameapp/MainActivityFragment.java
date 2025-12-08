@@ -25,6 +25,12 @@ public class MainActivityFragment extends Fragment {
     }
 
     @Override
+    public void onResume() {
+        super.onResume();
+        cannonView.resume();
+    }
+
+    @Override
     public void onPause() {
         super.onPause();
         cannonView.stopGame();

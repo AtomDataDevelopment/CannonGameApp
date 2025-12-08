@@ -4,22 +4,39 @@ import android.graphics.Canvas;
 import android.graphics.Rect;
 
 public class Cannonball extends GameElement {
-    private float velocityX;
-    private boolean onScreen;
 
-    public Cannonball(CannonView view, int color, int soundId, int x,
-                      int y, int radius, float velocityX, float velocityY) {
-        super(view, color, soundId, x, y, 2 * radius, 2 * radius, velocityY);
+    private float velocityX;
+    private boolean onScreen = true;
+
+    public Cannonball(CannonView view, int color, int soundId,
+                      int x, int y, int radius,
+                      float velocityX, float velocityY) {
+
+        super(view, color, soundId, x, y, radius * 2, radius * 2, velocityY);
+
         this.velocityX = velocityX;
-        onScreen = true;
     }
 
     private int getRadius() {
         return (shape.right - shape.left) / 2;
     }
 
+    @Override
+    public void update(double interval) {
+
+        super.update(interval); // movimento vertical
+
+        shape.offset((int) (velocityX * interval), 0);
+
+        if (shape.left < 0 || shape.right > view.getScreenWidth() ||
+                shape.top < 0 || shape.bottom > view.getScreenHeight()) {
+
+            onScreen = false;
+        }
+    }
+
     public boolean collidesWith(GameElement element) {
-        return (Rect.intersects(shape, element.shape) && velocityX > 0);
+        return Rect.intersects(shape, element.shape) && velocityX > 0;
     }
 
     public boolean isOnScreen() {
@@ -31,21 +48,13 @@ public class Cannonball extends GameElement {
     }
 
     @Override
-    public void update(double interval) {
-        super.update(interval); // Movimento vertical
-        shape.offset((int) (velocityX * interval), 0); // Movimento horizontal
-
-        // Verifica se saiu da tela
-        if (shape.top < 0 || shape.left < 0 ||
-                shape.bottom > view.getScreenHeight() ||
-                shape.right > view.getScreenWidth()) {
-            onScreen = false;
-        }
-    }
-
-    @Override
     public void draw(Canvas canvas) {
-        canvas.drawCircle(shape.left + getRadius(),
-                shape.top + getRadius(), getRadius(), paint);
+
+        canvas.drawCircle(
+                shape.left + getRadius(),
+                shape.top + getRadius(),
+                getRadius(),
+                paint
+        );
     }
 }

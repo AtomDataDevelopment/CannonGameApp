@@ -1,11 +1,13 @@
 package br.com.prog3.cannongameapp;
 
 public class Target extends GameElement {
-    private int hitReward; // Recompensa de tempo
 
-    public Target(CannonView view, int color, int hitReward, int x, int y,
-                  int width, int length, float velocityY) {
-        super(view, color, CannonView.TARGET_SOUND_ID, x, y, width, length, velocityY);
+    private int hitReward;
+
+    public Target(CannonView view, int color, int hitReward,
+                  int x, int y, int width, int height, float velocityY) {
+
+        super(view, color, CannonView.SOUND_HIT, x, y, width, height, velocityY);
         this.hitReward = hitReward;
     }
 
