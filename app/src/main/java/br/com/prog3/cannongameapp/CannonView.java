@@ -456,7 +456,7 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         for (int i = 0; i < targets.size(); i++) {
             Target target = targets.get(i);
             target.update(interval);
-            if (target.isHit() && target.isAnimationFinished()) {
+            if (target.isHit()) {
                 targetsToRemove.add(target);
             }
         }
@@ -763,7 +763,7 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         public void update(double interval) {
             x += velocityX * interval;
             y += velocityY * interval;
-            alpha -= (float) (255 * interval / 1.2); //Particle life
+            alpha -= (float) (255 * interval / 1.2);
             if (alpha < 0) alpha = 0;
         }
 
@@ -782,7 +782,7 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         public boolean finished = false;
 
         public Explosion(float x, float y, int color) {
-            for (int i = 0; i < 25; i++) { //N of particles
+            for (int i = 0; i < 25; i++) {
                 particles.add(new Particle(x, y, color));
             }
         }
