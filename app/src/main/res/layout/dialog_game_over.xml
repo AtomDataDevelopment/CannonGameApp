@@ -12,33 +12,42 @@
         android:layout_height="match_parent"
         android:padding="16dp">
 
-        <!-- BOTÃO JOGAR NOVAMENTE -->
-        <Button
-            android:id="@+id/btnRestart"
+        <LinearLayout
+            android:id="@+id/buttonsLayout"
             android:layout_width="0dp"
-            android:layout_height="55dp"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
             android:layout_marginTop="8dp"
-            android:backgroundTint="#4CAF50"
-            android:text="Jogar Novamente"
-            android:textColor="#FFF"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            app:cornerRadius="8dp"
             app:layout_constraintBottom_toBottomOf="parent"
             app:layout_constraintEnd_toEndOf="parent"
-            app:layout_constraintStart_toStartOf="parent" />
+            app:layout_constraintStart_toStartOf="parent">
 
-        <!-- CONTÊINER PRINCIPAL -->
+            <Button
+                android:id="@+id/btnReturnToMenu"
+                android:layout_width="0dp"
+                android:layout_height="55dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:text="Return to Menu" />
+
+            <Button
+                android:id="@+id/btnRestart"
+                android:layout_width="0dp"
+                android:layout_height="55dp"
+                android:layout_weight="1"
+                android:text="Play Again" />
+
+        </LinearLayout>
+
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_marginBottom="12dp"
             android:baselineAligned="false"
             android:orientation="horizontal"
-            app:layout_constraintBottom_toTopOf="@id/btnRestart"
+            app:layout_constraintBottom_toTopOf="@id/buttonsLayout"
             app:layout_constraintTop_toTopOf="parent">
 
-            <!-- COLUNA DA ESQUERDA: RESULTADOS ATUAIS -->
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
@@ -52,12 +61,11 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="16dp"
-                    android:text="FIM DE JOGO"
-                    android:textColor="#333"
+                    android:text="GAME OVER"
+                    android:textColor="#333333"
                     android:textSize="22sp"
                     android:textStyle="bold" />
 
-                <!-- Caixa Azul com Resultados -->
                 <TextView
                     android:id="@+id/tvMessage"
                     android:layout_width="match_parent"
@@ -79,7 +87,6 @@
                 android:layout_marginBottom="10dp"
                 android:background="#CCCCCC" />
 
-            <!-- COLUNA DA DIREITA: RANKING -->
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="match_parent"
@@ -93,9 +100,9 @@
                     android:layout_marginBottom="8dp"
                     android:text="🏆 Top 10 Ranking"
                     android:textAlignment="center"
-                    android:textColor="#555"
+                    android:textColor="#555555"
                     android:textSize="16sp"
-                    android:textStyle="bold" />
+                    android.textStyle="bold" />
 
                 <ScrollView
                     android:layout_width="match_parent"
@@ -109,9 +116,9 @@
                         android:layout_height="wrap_content"
                         android:lineSpacingExtra="4dp"
                         android:padding="12dp"
-                        android:text="Carregando..."
+                        android:text="Loading..."
                         android:textAlignment="center"
-                        android:textColor="#333"
+                        android:textColor="#333333"
                         android:textSize="14sp"
                         android:typeface="monospace" />
                 </ScrollView>

@@ -17,37 +17,72 @@ public class HighScoreManager {
         preferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
     }
 
-    public void addScore(int score) {
+    public void addScore(int score, int level) {
         if (score <= 0) return;
-        List<Integer> scores = getHighScores();
-        scores.add(score);
-        Collections.sort(scores, Collections.reverseOrder());
-        if (scores.size() > MAX_SCORES) {
-            scores = scores.subList(0, MAX_SCORES);
+        List<HighScore> scores = getHighScores();
+        scores.add(new HighScore(score, level));
+        Collections.sort(scores, (s1, s2) -> Integer.compare(s2.getScore(), s1.getScore()));
+        while (scores.size() > MAX_SCORES) {
+            scores.remove(scores.size() - 1);
         }
         saveScores(scores);
     }
 
-    public List<Integer> getHighScores() {
-        String savedString = preferences.getString(SCORES_KEY, "");
-        List<Integer> scores = new ArrayList<>();
-        if (!savedString.isEmpty()) {
-            String[] items = savedString.split(",");
-            for (String item : items) {
-                try {
-                    scores.add(Integer.parseInt(item));
-                } catch (NumberFormatException e) {}
+    public List<HighScore> getHighScores() {
+        List<HighScore> scores = new ArrayList<>();
+        String savedString = preferences.getString(SCORES_KEY, null);
+
+        if (savedString == null) {
+            return scores;
+        }
+
+        String[] items = savedString.split(",");
+        for (String item : items) {
+            try {
+                String trimmedItem = item.trim();
+                if (trimmedItem.isEmpty()) {
+                    continue;
+                }
+
+                if (trimmedItem.contains(":")) {
+                    String[] parts = trimmedItem.split(":");
+                    if (parts.length == 2) {
+                        int scoreValue = Integer.parseInt(parts[0].trim());
+                        int levelValue = Integer.parseInt(parts[1].trim());
+                        scores.add(new HighScore(scoreValue, levelValue));
+                    }
+                } else {
+                    int scoreValue = Integer.parseInt(trimmedItem);
+                    scores.add(new HighScore(scoreValue, 1));
+                }
+            } catch (Exception e) {
             }
         }
         return scores;
     }
 
-    private void saveScores(List<Integer> scores) {
+    private void saveScores(List<HighScore> scores) {
         StringBuilder sb = new StringBuilder();
         for (int i = 0; i < scores.size(); i++) {
-            sb.append(scores.get(i));
-            if (i < scores.size() - 1) sb.append(",");
+            HighScore hs = scores.get(i);
+            sb.append(hs.getScore()).append(":").append(hs.getLevel());
+            if (i < scores.size() - 1) {
+                sb.append(",");
+            }
         }
-        preferences.edit().putString(SCORES_KEY, sb.toString()).apply();
+        preferences.edit().putString(SCORES_KEY, sb.toString()).commit();
+    }
+
+    public static class HighScore {
+        private final int score;
+        private final int level;
+
+        public HighScore(int score, int level) {
+            this.score = score;
+            this.level = level;
+        }
+
+        public int getScore() { return score; }
+        public int getLevel() { return level; }
     }
 }
