@@ -744,8 +744,10 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         float x, y;
         float velocityX, velocityY;
         int color;
-        int alpha = 255;
+        float alpha = 255f;
         Paint paint;
+        float radius;
+        private Random random = new Random();
 
         public Particle(float x, float y, int color) {
             this.x = x;
@@ -753,22 +755,25 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
             this.color = color;
             this.paint = new Paint();
             this.paint.setColor(color);
-
-            Random random = new Random();
-            this.velocityX = (random.nextFloat() - 0.5f) * screenWidth * 0.05f;
-            this.velocityY = (random.nextFloat() - 0.5f) * screenHeight * 0.05f;
+            this.velocityX = (random.nextFloat() * 2f - 1f) * screenWidth * 0.1f;
+            this.velocityY = (random.nextFloat() * 2f - 1f) * screenHeight * 0.1f;
+            this.radius = random.nextFloat() * 6f + 2f;
         }
 
         public void update(double interval) {
             x += velocityX * interval;
             y += velocityY * interval;
-            alpha -= 10;
+            alpha -= (float) (255 * interval / 1.2); //Particle life
             if (alpha < 0) alpha = 0;
         }
 
         public void draw(Canvas canvas) {
-            paint.setAlpha(alpha);
-            canvas.drawCircle(x, y, 8, paint);
+            paint.setAlpha((int) alpha);
+            canvas.drawCircle(x, y, radius, paint);
+        }
+
+        public boolean isAlive() {
+            return alpha > 0;
         }
     }
 
@@ -777,23 +782,24 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         public boolean finished = false;
 
         public Explosion(float x, float y, int color) {
-            for (int i = 0; i < 20; i++) {
+            for (int i = 0; i < 25; i++) { //N of particles
                 particles.add(new Particle(x, y, color));
             }
         }
 
         public void update(double interval) {
-            boolean allDead = true;
+            particles.removeIf(p -> !p.isAlive());
             for (Particle p : particles) {
                 p.update(interval);
-                if (p.alpha > 0) allDead = false;
             }
-            if (allDead) finished = true;
+            if (particles.isEmpty()) {
+                finished = true;
+            }
         }
 
         public void draw(Canvas canvas) {
             for (Particle p : particles) {
-                if (p.alpha > 0) p.draw(canvas);
+                p.draw(canvas);
             }
         }
     }
