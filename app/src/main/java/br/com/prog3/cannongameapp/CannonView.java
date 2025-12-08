@@ -1,13 +1,13 @@
 package br.com.prog3.cannongameapp;
 
 import android.app.Activity;
-import android.app.AlertDialog;
+import android.app.Dialog;
 import android.content.Context;
-import android.content.DialogInterface;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Point;
+import android.graphics.drawable.ColorDrawable;
 import android.media.AudioAttributes;
 import android.media.SoundPool;
 import android.os.Build;
@@ -17,10 +17,16 @@ import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
-import java.util.ArrayList;
-import java.util.Random;
+import android.view.Window;
+import android.widget.Button;
+import android.widget.TextView;
 
+import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Random;
 
 public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     public static final int MISS_PENALTY = 2;
@@ -59,6 +65,10 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     private int score;
     private int level;
 
+    // Variáveis de Pontuação
+    private int comboMultiplier; // Multiplicador atual (1x, 2x, 3x...)
+    private Paint hudPaint;      // Tinta para o texto do HUD
+
     private float power = 0.0f;
     private long fireTouchStartTime = 0;
     private boolean isCharging = false;
@@ -79,10 +89,13 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     private long lastFireTime = 0;
     private static final int RELOAD_DELAY = 500;
     private boolean canFire = true;
+    
+    private final HighScoreManager highScoreManager;
 
     public CannonView(Context context, AttributeSet attrs) {
         super(context, attrs);
         activity = (Activity) context;
+        highScoreManager = new HighScoreManager(context);
         getHolder().addCallback(this);
 
         AudioAttributes.Builder attrBuilder = new AudioAttributes.Builder();
@@ -101,6 +114,13 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         textPaint = new Paint();
         backgroundPaint = new Paint();
 
+        // Configuração do HUD (Placar)
+        hudPaint = new Paint();
+        hudPaint.setColor(Color.WHITE); // Será atualizado por loadThemeColors
+        hudPaint.setAntiAlias(true);
+        hudPaint.setTypeface(android.graphics.Typeface.DEFAULT_BOLD);
+        hudPaint.setShadowLayer(10.0f, 2.0f, 2.0f, Color.BLACK); // Sombra para contraste
+
         loadThemeColors(context);
     }
 
@@ -114,6 +134,10 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
 
         colorText = getThemeColor(context, R.color.cor_texto_id);
         textPaint.setColor(colorText);
+        
+        if (hudPaint != null) {
+            hudPaint.setColor(colorText);
+        }
     }
 
     public void playSound(int soundId) {
@@ -136,6 +160,7 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         if (!dialogIsDisplayed) {
             level = 1;
             score = 0;
+            comboMultiplier = 1;
             newGame(level);
             cannonThread = new CannonThread(holder);
             cannonThread.setRunning(true);
@@ -303,6 +328,8 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
 
         timeLeft = 30;
         shotsFired = 0;
+        score = 0; // Zera a pontuação ao iniciar um novo jogo
+        comboMultiplier = 1; // Reinicia o combo
         totalElapsedTime = 0.0;
         canFire = true;
         lastFireTime = 0;
@@ -326,8 +353,16 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
             power = chargeRatio;
         }
 
-        if (cannon.getCannonball() != null)
+        if (cannon.getCannonball() != null) {
             cannon.getCannonball().update(interval);
+            
+            // --- LÓGICA NOVA: Se a bola saiu da tela, perde o combo ---
+            if (!cannon.getCannonball().isOnScreen()) {
+                comboMultiplier = 1; // Errou o tiro, volta para 1x
+                cannon.removeCannonball(); // Garante que a bola suma
+            }
+        }
+        
         blocker.update(interval);
         for (Target target : targets)
             target.update(interval);
@@ -410,78 +445,158 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         }
     }
 
-    private void showGameOverDialog(final int messageId) {
-        activity.runOnUiThread(new Runnable() {
-            public void run() {
-                showSystemBars();
-                AlertDialog.Builder builder = new AlertDialog.Builder(activity);
-                builder.setTitle(getResources().getString(messageId));
-                builder.setMessage(getResources().getString(
-                        R.string.results_format, shotsFired, totalElapsedTime));
-                builder.setPositiveButton(R.string.reset_game,
-                        new DialogInterface.OnClickListener() {
-                            @Override
-                            public void onClick(DialogInterface dialog, int which) {
-                                dialogIsDisplayed = false;
-                                level = 1;
-                                score = 0;
-                                newGame(level);
-                            }
-                        }
-                );
-                builder.setCancelable(false);
-                builder.show();
-            }
-        });
-    }
-
-    public void drawGameElements(Canvas canvas) {
-        canvas.drawRect(0, 0, canvas.getWidth(), canvas.getHeight(), backgroundPaint);
-        canvas.drawText(getResources().getString(R.string.time_remaining_format, timeLeft),
-                30, 50, textPaint);
-        canvas.drawText("Score: " + score, 30, 100, textPaint);
-        canvas.drawText("Level: " + level, 30, 150, textPaint);
-
-
-        String powerString = (isCharging) ? String.format("Power: %.0f%%", power * 100) : "Power: 0%";
-        canvas.drawText(powerString, 30, 200, textPaint);
-
-        cannon.draw(canvas);
-        if (cannon.getCannonball() != null && cannon.getCannonball().isOnScreen())
-            cannon.getCannonball().draw(canvas);
-        blocker.draw(canvas);
-        for (Target target : targets)
-            target.draw(canvas);
-    }
-
     public void testForCollisions() {
+        // 1. Colisão com Alvos (Ganhar Pontos)
         if (cannon.getCannonball() != null && cannon.getCannonball().isOnScreen()) {
             for (int n = 0; n < targets.size(); n++) {
                 if (cannon.getCannonball().collidesWith(targets.get(n))) {
                     targets.get(n).playSound();
+
+                    // --- LÓGICA DE PONTOS ---
+                    int points = 100 * comboMultiplier; // 100 base * combo
+                    score += points;
+                    comboMultiplier++; // Aumenta o combo!
+                    // ------------------------
+
                     timeLeft += targets.get(n).getHitReward();
-                    score += targets.get(n).getHitReward();
                     cannon.removeCannonball();
                     targets.remove(n);
-
+                    
                     for (Target remainingTarget : targets) {
                         remainingTarget.increaseVelocity(1.2f);
                     }
-
+                    
                     --n;
                     break;
                 }
             }
-        } else { return; }
+        }
 
-        if (cannon.getCannonball() != null && checkCircleRectangleCollision(cannon.getCannonball(), blocker)) {
+        // 2. Colisão com o Blocker (Penalidade)
+        if (cannon.getCannonball() != null && cannon.getCannonball().collidesWith(blocker)) {
             blocker.playSound();
             cannon.getCannonball().reverseVelocityX();
-            cannon.getCannonball().registerBounce();
+            cannon.getCannonball().registerBounce(); // Assuming this exists in Cannonball
+
             timeLeft -= blocker.getMissPenalty();
+
+            // --- PENALIDADE DE PONTOS ---
+            score -= 50;
+            if (score < 0) score = 0;
+            comboMultiplier = 1; // Zera o combo
+            // ----------------------------
         }
     }
 
+    public void drawGameElements(Canvas canvas) {
+        canvas.drawRect(0, 0, canvas.getWidth(), canvas.getHeight(), backgroundPaint);
+        
+        // Desenha o Tempo Restante
+        canvas.drawText(getResources().getString(R.string.time_remaining_format, timeLeft), 30, 50, textPaint);
+
+        // --- HUD DE PONTUAÇÃO ---
+        // Desenha o Score no canto direito
+        hudPaint.setTextAlign(Paint.Align.RIGHT);
+        hudPaint.setColor(colorText); // Usa cor do tema
+        hudPaint.setTextSize(screenHeight * 0.05f); // Tamanho normal
+        canvas.drawText("Score: " + score, screenWidth - 50, 80, hudPaint);
+
+        // Desenha o Combo (se for maior que 1)
+        if (comboMultiplier > 1) {
+            hudPaint.setTextAlign(Paint.Align.CENTER);
+            hudPaint.setColor(Color.YELLOW); // Amarelo para destaque
+            hudPaint.setTextSize(screenHeight * 0.08f); // Maior que o texto normal
+            canvas.drawText("COMBO x" + comboMultiplier + "!", screenWidth / 2f, screenHeight * 0.2f, hudPaint);
+            
+            // Reseta a cor para não afetar o próximo frame
+            hudPaint.setColor(colorText);
+        }
+        // ------------------------
+
+        if (cannon.getCannonball() != null && cannon.getCannonball().isOnScreen())
+            cannon.getCannonball().draw(canvas);
+
+        cannon.draw(canvas);
+
+        if (blocker != null)
+            blocker.draw(canvas);
+
+        if (targets != null) {
+            for (Target target : targets)
+                target.draw(canvas);
+        }
+        
+        // Desenha a barra de força (Power)
+        if (isCharging) {
+            Paint powerPaint = new Paint();
+            powerPaint.setColor(Color.RED);
+            float barWidth = screenWidth * 0.2f;
+            float barHeight = 20f;
+            float left = (screenWidth - barWidth) / 2;
+            float top = screenHeight - 150;
+            canvas.drawRect(left, top, left + (barWidth * power), top + barHeight, powerPaint);
+        }
+    }
+
+    private void showGameOverDialog(final int messageId) {
+        // 1. Salva o score automaticamente
+        highScoreManager.addScore(score);
+
+        // 2. Recupera o ranking atualizado (Lista de números)
+        List<Integer> highScores = highScoreManager.getHighScores();
+
+        StringBuilder rankingText = new StringBuilder();
+        if (highScores.isEmpty()) {
+            rankingText.append("Sem recordes ainda!");
+        } else {
+            for (int i = 0; i < highScores.size(); i++) {
+                int pts = highScores.get(i);
+                rankingText.append(i + 1).append(". ").append(pts).append(" pts");
+                if (pts == score && score > 0) {
+                    rankingText.append(" (SEU!)");
+                }
+                rankingText.append("\n");
+            }
+        }
+
+        activity.runOnUiThread(() -> {
+            showSystemBars();
+
+            final Dialog dialog = new Dialog(activity);
+            dialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+            dialog.setContentView(R.layout.dialog_game_over);
+            dialog.setCancelable(false);
+
+            if (dialog.getWindow() != null) {
+                dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+            }
+
+            TextView tvTitle = dialog.findViewById(R.id.tvTitle);
+            TextView tvMessage = dialog.findViewById(R.id.tvMessage);
+            TextView tvHighScores = dialog.findViewById(R.id.tvHighScores);
+            Button btnRestart = dialog.findViewById(R.id.btnRestart);
+
+            tvTitle.setText(getResources().getString(messageId));
+            tvMessage.setText(getResources().getString(R.string.results_format, shotsFired, totalElapsedTime, score));
+            tvHighScores.setText(rankingText.toString());
+
+            btnRestart.setOnClickListener(v -> {
+                dialog.dismiss();
+                dialogIsDisplayed = false;
+                hideSystemBars();
+                newGame(1);
+            });
+
+            dialog.show();
+
+            if (dialog.getWindow() != null) {
+                int width = (int) (getResources().getDisplayMetrics().widthPixels * 0.95);
+                int height = (int) (getResources().getDisplayMetrics().heightPixels * 0.85);
+                dialog.getWindow().setLayout(width, height);
+            }
+        });
+    }
+    
     public boolean checkCircleRectangleCollision(Cannonball cannonball, Blocker blocker) {
         float circleX = cannonball.shape.centerX();
         float circleY = cannonball.shape.centerY();
@@ -498,11 +613,30 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         return distanceSquared < (radius * radius);
     }
 
+    private void hideSystemBars() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT)
+            setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
+                            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
+                            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
+                            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
+                            View.SYSTEM_UI_FLAG_FULLSCREEN |
+                            View.SYSTEM_UI_FLAG_IMMERSIVE);
+    }
+
+    private void showSystemBars() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT)
+            setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
+                            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
+                            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
+    }
+
     public void stopGame() {
         if (cannonThread != null)
             cannonThread.setRunning(false);
     }
-
+    
     @Override
     protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
@@ -511,26 +645,9 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         textPaint.setTextSize((int) (TEXT_SIZE_PERCENT * screenHeight));
         textPaint.setAntiAlias(true);
         textPaint.setColor(colorText);
-    }
-
-    private void hideSystemBars() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
-                            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
-                            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN |
-                            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION |
-                            View.SYSTEM_UI_FLAG_FULLSCREEN |
-                            View.SYSTEM_UI_FLAG_IMMERSIVE);
-        }
-    }
-
-    private void showSystemBars() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.KITKAT) {
-            setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE |
-                            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION |
-                            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
-        }
+        
+        if (hudPaint != null)
+            hudPaint.setTextSize(screenHeight * 0.05f);
     }
 }
+
