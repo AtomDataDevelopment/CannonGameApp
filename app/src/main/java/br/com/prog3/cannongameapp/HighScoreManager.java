@@ -17,15 +17,29 @@ public class HighScoreManager {
         preferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
     }
 
-    public void addScore(int score, int level) {
-        if (score <= 0) return;
-        List<HighScore> scores = getHighScores();
-        scores.add(new HighScore(score, level));
-        Collections.sort(scores, (s1, s2) -> Integer.compare(s2.getScore(), s1.getScore()));
-        while (scores.size() > MAX_SCORES) {
-            scores.remove(scores.size() - 1);
+    public boolean addScore(int score, int level) {
+        if (score <= 0) {
+            return false;
         }
-        saveScores(scores);
+        List<HighScore> scores = getHighScores();
+
+        boolean isNewHighScore;
+        if (scores.size() < MAX_SCORES) {
+            isNewHighScore = true;
+        } else {
+            Collections.sort(scores, (s1, s2) -> Integer.compare(s2.getScore(), s1.getScore()));
+            isNewHighScore = score > scores.get(scores.size() - 1).getScore();
+        }
+
+        if (isNewHighScore) {
+            scores.add(new HighScore(score, level));
+            Collections.sort(scores, (s1, s2) -> Integer.compare(s2.getScore(), s1.getScore()));
+            while (scores.size() > MAX_SCORES) {
+                scores.remove(scores.size() - 1);
+            }
+            saveScores(scores);
+        }
+        return isNewHighScore;
     }
 
     public List<HighScore> getHighScores() {
