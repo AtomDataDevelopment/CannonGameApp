@@ -89,7 +89,7 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     private SoundPool soundPool;
     private SparseIntArray soundMap;
 
-    private MediaPlayer backgroundPlayer;  // <<<<<< SOM DE FUNDO
+    private MediaPlayer backgroundPlayer;
 
     private Paint textPaint;
     private Paint backgroundPaint;
@@ -109,7 +109,6 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         highScoreManager = new HighScoreManager(context);
         getHolder().addCallback(this);
 
-        // ---------- SOUNDPOOL ----------
         AudioAttributes.Builder attrBuilder = new AudioAttributes.Builder();
         attrBuilder.setUsage(AudioAttributes.USAGE_GAME);
 
@@ -125,7 +124,6 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         soundMap.put(GAME_OVER_SOUND_ID, soundPool.load(context, R.raw.game_over, 1));
         soundMap.put(BEST_RANKING_SOUND_ID, soundPool.load(context, R.raw.best_ranking, 1));
 
-        // ---------- SOM DE FUNDO ----------
         backgroundPlayer = MediaPlayer.create(context, R.raw.background_sound);
         backgroundPlayer.setLooping(true);
         backgroundPlayer.setVolume(0.15f, 0.15f);
@@ -426,10 +424,12 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
                 (float) (BLOCKER_SPEED_PERCENT * screenHeight));
 
         timeLeft = 30;
-        shotsFired = 0;
-        score = 0;
+        if (level == 1) {
+            shotsFired = 0;
+            score = 0;
+            totalElapsedTime = 0.0;
+        }
         comboMultiplier = 1;
-        totalElapsedTime = 0.0;
         canFire = true;
         lastFireTime = 0;
         power = 0.0f;
@@ -443,7 +443,6 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         cannonThread = new CannonThread(getHolder());
         cannonThread.start();
 
-        // <<< INICIAR SOM DE FUNDO AQUI >>>
         if (backgroundPlayer != null && !backgroundPlayer.isPlaying()) {
             backgroundPlayer.start();
         }
@@ -651,10 +650,10 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     private void showGameOverDialog(final int messageId) {
-        boolean isNewHighScore = highScoreManager.addScore(score, level);
+        int newScoreType = highScoreManager.addScore(score, level);
         List<HighScoreManager.HighScore> highScores = highScoreManager.getHighScores();
 
-        if (isNewHighScore) {
+        if (newScoreType == 2) {
             playSound(BEST_RANKING_SOUND_ID);
         } else {
             playSound(GAME_OVER_SOUND_ID);
