@@ -83,6 +83,8 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     public static final int TARGET_SOUND_ID = 0;
     public static final int CANNON_SOUND_ID = 1;
     public static final int BLOCKER_SOUND_ID = 2;
+    public static final int GAME_OVER_SOUND_ID = 3;
+    public static final int BEST_RANKING_SOUND_ID = 4;
 
     private SoundPool soundPool;
     private SparseIntArray soundMap;
@@ -116,10 +118,12 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         builder.setAudioAttributes(attrBuilder.build());
         soundPool = builder.build();
 
-        soundMap = new SparseIntArray(3);
+        soundMap = new SparseIntArray(5);
         soundMap.put(TARGET_SOUND_ID, soundPool.load(context, R.raw.target_hit, 1));
         soundMap.put(CANNON_SOUND_ID, soundPool.load(context, R.raw.cannon_fire, 1));
         soundMap.put(BLOCKER_SOUND_ID, soundPool.load(context, R.raw.blocker_hit, 1));
+        soundMap.put(GAME_OVER_SOUND_ID, soundPool.load(context, R.raw.game_over, 1));
+        soundMap.put(BEST_RANKING_SOUND_ID, soundPool.load(context, R.raw.best_ranking, 1));
 
         // ---------- SOM DE FUNDO ----------
         backgroundPlayer = MediaPlayer.create(context, R.raw.background_sound);
@@ -532,6 +536,14 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
         if (timeLeft <= 0) {
             timeLeft = 0.0;
             gameOver = true;
+            if (backgroundPlayer != null && backgroundPlayer.isPlaying()) {
+                backgroundPlayer.stop();
+                try {
+                    backgroundPlayer.prepare();
+                } catch (java.io.IOException e) {
+                    e.printStackTrace();
+                }
+            }
             cannonThread.setRunning(false);
             showGameOverDialog(R.string.lose);
         }
@@ -639,8 +651,14 @@ public class CannonView extends SurfaceView implements SurfaceHolder.Callback {
     }
 
     private void showGameOverDialog(final int messageId) {
-        highScoreManager.addScore(score, level);
+        boolean isNewHighScore = highScoreManager.addScore(score, level);
         List<HighScoreManager.HighScore> highScores = highScoreManager.getHighScores();
+
+        if (isNewHighScore) {
+            playSound(BEST_RANKING_SOUND_ID);
+        } else {
+            playSound(GAME_OVER_SOUND_ID);
+        }
 
         StringBuilder rankingText = new StringBuilder();
         if (highScores.isEmpty()) {
